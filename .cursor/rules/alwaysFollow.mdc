@@ -1,0 +1,153 @@
+---
+description:
+globs:
+alwaysApply: true
+---
+# Cursor Rules for GC-Service (Python/FastAPI Backend)
+
+## Project Overview
+This is a FastAPI backend service for a closet management app with Supabase integration, image processing, and background removal capabilities.
+
+## Code Standards & Best Practices
+
+### Python Standards
+- Follow PEP 8 style guidelines strictly
+- Use type hints for all function parameters and return values
+- Use descriptive variable and function names (snake_case)
+- Keep functions focused and single-purpose
+- Use docstrings for all classes, functions, and modules
+- Maximum line length: 88 characters (Black formatter standard)
+- Use f-strings for string formatting
+- Prefer list/dict comprehensions when appropriate
+
+### FastAPI Standards
+- Use Pydantic models for request/response validation
+- Implement proper HTTP status codes
+- Use dependency injection for authentication and database access
+- Follow RESTful API conventions
+- Use async/await for I/O operations
+- Implement proper error handling with HTTPException
+- Use response models for consistent API responses
+
+### File Organization
+- Keep related functionality in separate modules
+- Use clear, descriptive file names
+- Group imports: standard library, third-party, local imports
+- Maintain consistent import ordering
+
+### Database & Storage
+- Use async database operations
+- Implement proper error handling for database operations
+- Use environment variables for configuration
+- Follow Supabase best practices for RLS policies
+
+### Security
+- Validate all input data using Pydantic models
+- Implement proper authentication middleware
+- Use environment variables for sensitive data
+- Sanitize file uploads and validate file types
+
+## Component Creation Guidelines
+
+### When to Create Reusable Components
+- Create utility functions for repeated business logic
+- Extract common database operations into service classes
+- Create reusable Pydantic models for similar data structures
+- Implement shared middleware for cross-cutting concerns
+
+### Component Structure
+```python
+# Service classes should follow this pattern:
+class ServiceName:
+    @staticmethod
+    async def method_name(param: Type) -> ReturnType:
+        """Clear docstring explaining the method's purpose."""
+        # Implementation
+        pass
+
+# Pydantic models should follow this pattern:
+class ModelName(BaseModel):
+    field_name: Type = Field(..., description="Field description")
+    
+    class Config:
+        from_attributes = True
+```
+
+## Documentation Rules
+
+### DO NOT CREATE MARKDOWN DOCUMENTATION UNLESS:
+- Explicitly requested by the user
+- Required for API documentation (OpenAPI/Swagger)
+- Creating README files for deployment instructions
+- Documenting complex algorithms or business logic
+- Dont write new function when there is existing one for eg. dont do simpile version , and then different variation of this method when fixing issues, always use the same method till you get it working.
+
+### Instead of creating .md files:
+- Use comprehensive docstrings in code
+- Add inline comments for complex logic
+- Use type hints for self-documenting code
+- Create clear variable and function names
+
+## Code Generation Guidelines
+
+### API Endpoints
+- Always include proper error handling
+- Use appropriate HTTP status codes
+- Implement input validation with Pydantic
+- Add logging for important operations
+- Use dependency injection for authentication
+
+### Database Operations
+- Use async/await patterns
+- Implement proper error handling
+- Use transactions for multi-step operations
+- Validate data before database operations
+
+### File Handling
+- Validate file types and sizes
+- Use proper error handling for file operations
+- Implement secure file upload patterns
+- Use environment variables for file paths
+
+## Error Handling
+- Use HTTPException for API errors
+- Log errors with appropriate levels
+- Provide meaningful error messages
+- Implement graceful degradation where possible
+
+## Testing Considerations
+- Write testable code with dependency injection
+- Use mock objects for external dependencies
+- Implement proper error scenarios in tests
+- Follow AAA pattern (Arrange, Act, Assert)
+
+## Performance
+- Use async operations for I/O
+- Implement proper caching strategies
+- Optimize database queries
+- Use connection pooling for database connections
+- whenever new api is created make sure it can handle a concurrent request of atleast 1000 users at a time
+
+## Dependencies
+- Keep dependencies minimal and up-to-date
+- Use virtual environments
+- Document dependency requirements clearly
+- Prefer well-maintained, popular packages
+
+## Environment Configuration
+- Use environment variables for configuration
+- Provide sensible defaults
+- Validate configuration on startup
+- Use different configs for different environments
+
+## Code Review Checklist
+- [ ] Follows PEP 8 style guidelines
+- [ ] Has proper type hints
+- [ ] Includes comprehensive docstrings
+- [ ] Implements proper error handling
+- [ ] Uses async/await appropriately
+- [ ] Validates input data
+- [ ] Follows security best practices
+- [ ] Has appropriate logging
+- [ ] Uses dependency injection
+- [ ] Follows RESTful conventions
