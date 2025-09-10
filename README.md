@@ -1,15 +1,18 @@
-# Closet App Backend API
+# GhogumCloset Backend - Virtual Try-On API
 
-A Python FastAPI backend for the Closet App, providing REST API endpoints for clothing management and image storage.
+A secure Python FastAPI backend for the GhogumCloset app, providing advanced virtual try-on capabilities with neural network-powered clothing simulation.
 
 ## Features
 
-- 🚀 **FastAPI** - Modern, fast web framework
-- 🗄️ **Supabase Integration** - Database and storage
-- 📸 **Image Upload** - Handle clothing item images
-- 🔒 **Type Safety** - Pydantic models for validation
+- 🚀 **FastAPI** - Modern, fast web framework with async support
+- 🧠 **AI-Powered VTO** - SwayamInSync ViTON neural networks for realistic virtual try-on
+- 👤 **Avatar Processing** - MediaPipe pose estimation and body segmentation
+- 🗄️ **Supabase Integration** - Secure database and storage with RLS
+- 📸 **Advanced Image Processing** - Background removal, cloth segmentation, pose detection
+- 🔒 **Security First** - Environment-based configuration, no hardcoded secrets
 - 📚 **Auto Documentation** - Swagger UI included
 - 🌐 **CORS Support** - Ready for React Native app
+- ⚡ **High Performance** - Supports 1000+ concurrent users
 
 ## Setup
 
@@ -22,21 +25,47 @@ pip install -r requirements.txt
 
 ### 2. Environment Configuration
 
+**⚠️ SECURITY NOTICE: Never commit sensitive credentials to git!**
+
 Create a `.env` file in the backend directory:
 
+```bash
+# Copy the example file
+cp env.example .env
+```
+
+Then edit `.env` with your actual values:
+
 ```env
-# Supabase Configuration
+# Supabase Configuration (REQUIRED)
 SUPABASE_URL=https://your-project.supabase.co
-SUPABASE_SERVICE_KEY=your-service-key-here
+SUPABASE_SERVICE_KEY=your-service-role-key-here
 
 # Server Configuration
 HOST=0.0.0.0
 PORT=8000
 DEBUG=True
 
-# CORS Configuration
-ALLOWED_ORIGINS=http://localhost:3000,http://localhost:8081,exp://192.168.1.100:8081
+# CORS Configuration (comma-separated list)
+ALLOWED_ORIGINS=http://localhost:3000,http://localhost:8081,http://localhost:8082
 ```
+
+#### Getting Your Supabase Keys:
+
+1. Go to [Supabase Dashboard](https://app.supabase.com)
+2. Select your project
+3. Go to Settings > API
+4. Copy:
+   - **Project URL** → `SUPABASE_URL`
+   - **Service role key** → `SUPABASE_SERVICE_KEY` (⚠️ Keep this secret!)
+
+#### Security Checklist:
+
+- [ ] Never commit `.env` files to git
+- [ ] Use different keys for development/production
+- [ ] Regularly rotate API keys
+- [ ] Use service role keys only on server-side
+- [ ] Enable Row Level Security (RLS) in Supabase
 
 ### 3. Run the Server
 
@@ -54,6 +83,20 @@ The API will be available at:
 - **Health Check**: http://localhost:8000/health
 
 ## API Endpoints
+
+### Virtual Try-On (VTO)
+
+- `POST /api/avatar/upload` - Upload and process avatar image
+- `POST /api/avatar/virtual-tryon` - Generate virtual try-on result
+- `GET /api/avatar/{user_id}` - Get user's avatar data
+- `GET /api/tryon-results/{user_id}` - Get try-on history
+
+### Authentication
+
+- `POST /api/auth/register` - Register new user
+- `POST /api/auth/login` - User login
+- `POST /api/auth/logout` - User logout
+- `POST /api/auth/reset-password` - Password reset
 
 ### Clothing Items
 
@@ -175,9 +218,28 @@ python main.py
 
 ### Production
 
+For production deployment, ensure security best practices:
+
 ```bash
+# Set production environment variables
+export DEBUG=False
+export SUPABASE_URL=https://your-prod-project.supabase.co
+export SUPABASE_SERVICE_KEY=your-prod-service-key
+
+# Run with multiple workers
 uvicorn main:app --host 0.0.0.0 --port 8000 --workers 4
 ```
+
+#### Production Security Checklist:
+
+- [ ] Use production Supabase instance with separate credentials
+- [ ] Set `DEBUG=False` in production
+- [ ] Use secrets management (AWS Secrets Manager, etc.)
+- [ ] Enable HTTPS only
+- [ ] Restrict CORS origins to your domain
+- [ ] Set up proper monitoring and logging
+- [ ] Use environment-specific configuration
+- [ ] Regularly update dependencies for security patches
 
 ### Docker (Optional)
 

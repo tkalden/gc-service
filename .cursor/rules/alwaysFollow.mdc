@@ -80,7 +80,12 @@ class ModelName(BaseModel):
 - Required for API documentation (OpenAPI/Swagger)
 - Creating README files for deployment instructions
 - Documenting complex algorithms or business logic
+
+### ANSWER RULE
 - Dont write new function when there is existing one for eg. dont do simpile version , and then different variation of this method when fixing issues, always use the same method till you get it working.
+- Don't generate todo list after answering the question
+- Don't write what you have achieved unless it is a complicated solution which helps me to understand the solution.
+- Don't use emojis
 
 ### Instead of creating .md files:
 - Use comprehensive docstrings in code
