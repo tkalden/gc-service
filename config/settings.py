@@ -30,18 +30,14 @@ class Settings(BaseSettings):
     supabase_anon_key: Optional[str] = None
     
     # CORS
-    allowed_origins: List[str] = [
-        "http://localhost:3000",
-        "http://localhost:8081",
-        "http://localhost:8082",
-    ]
+    allowed_origins: str = "http://localhost:3000,http://localhost:8081,http://localhost:8082"
     
     # Storage
     storage_bucket: str = "clothing-image"
     profile_pictures_bucket: str = "profile-picture"
     digital_twin_bucket: str = "digital-twin"
     max_file_size: int = 10 * 1024 * 1024  # 10MB
-    allowed_image_types: List[str] = ["image/jpeg", "image/png", "image/webp"]
+    allowed_image_types: str = "image/jpeg,image/png,image/webp"
     
     # Security
     secret_key: str = "your-secret-key-change-in-production"
@@ -65,7 +61,7 @@ class Settings(BaseSettings):
     enable_metrics: bool = True
     enable_health_checks: bool = True
     
-    @field_validator("allowed_origins", mode="before")
+    @field_validator("allowed_origins", mode="after")
     @classmethod
     def parse_cors_origins(cls, v):
         if v is None or v == "":
@@ -76,7 +72,12 @@ class Settings(BaseSettings):
             return v
         return []
     
-    @field_validator("allowed_image_types", mode="before")
+    @property
+    def allowed_origins_list(self) -> List[str]:
+        """Get allowed origins as a list"""
+        return self.parse_cors_origins(self.allowed_origins)
+    
+    @field_validator("allowed_image_types", mode="after")
     @classmethod
     def parse_image_types(cls, v):
         if v is None or v == "":
@@ -86,6 +87,11 @@ class Settings(BaseSettings):
         if isinstance(v, list):
             return v
         return ["image/jpeg", "image/png", "image/webp"]
+    
+    @property
+    def allowed_image_types_list(self) -> List[str]:
+        """Get allowed image types as a list"""
+        return self.parse_image_types(self.allowed_image_types)
     
     @field_validator("environment")
     @classmethod
