@@ -1,0 +1,3 @@
+"""
+Clothing items API endpoints
+"""

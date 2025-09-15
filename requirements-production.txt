@@ -1,0 +1,40 @@
+# Production requirements for GC-Service
+# Core FastAPI dependencies
+fastapi==0.87.0
+uvicorn[standard]==0.20.0
+pydantic==1.10.12
+python-multipart==0.0.6
+python-dotenv==1.0.0
+
+# Database and Storage
+supabase==2.0.0
+httpx==0.24.1
+aiofiles==23.2.1
+
+# Authentication and Security
+pyjwt==2.7.0
+email-validator==2.1.0
+passlib[bcrypt]==1.7.4
+
+# Image Processing (Core)
+pillow==9.3.0
+requests==2.31.0
+
+# Optional ML dependencies (uncomment if needed)
+# rembg==2.0.30
+# mediapipe==0.10.9
+# opencv-python==4.6.0.66
+# numpy==1.23.5
+# scipy==1.9.3
+# scikit-image==0.19.3
+
+# Monitoring and Logging
+structlog==23.1.0
+sentry-sdk[fastapi]==1.32.0
+
+# Development and Testing (optional)
+# pytest==7.4.0
+# pytest-asyncio==0.21.1
+# black==23.7.0
+# isort==5.12.0
+# flake8==6.0.0

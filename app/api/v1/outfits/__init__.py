@@ -1,0 +1,3 @@
+"""
+Outfits API endpoints
+"""
