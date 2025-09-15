@@ -1,0 +1,68 @@
+# Vercel ignore file
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+.Python
+env/
+venv/
+.venv/
+pip-log.txt
+pip-delete-this-directory.txt
+.tox/
+.coverage
+.coverage.*
+.cache
+nosetests.xml
+coverage.xml
+*.cover
+*.log
+.git
+.mypy_cache
+.pytest_cache
+.hypothesis
+
+# Development files
+.env
+.env.local
+.env.development.local
+.env.test.local
+.env.production.local
+
+# IDE files
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# OS files
+.DS_Store
+Thumbs.db
+
+# Project specific
+checkpoints/
+*.pth
+*.pkl
+*.h5
+*.model
+
+# Large files that shouldn't be deployed
+*.mp4
+*.avi
+*.mov
+*.wmv
+*.flv
+*.webm
+
+# Test files
+test_*.py
+*_test.py
+tests/
+
+# Documentation
+README.md
+*.md
+docs/
+
+# Scripts
+*.sh

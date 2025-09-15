@@ -1,0 +1,21 @@
+# Vercel-optimized requirements for serverless deployment
+fastapi==0.87.0
+uvicorn[standard]==0.20.0
+supabase==2.0.0
+python-multipart==0.0.6
+python-dotenv==1.0.0
+pydantic==1.10.12
+httpx==0.24.1
+pillow==9.3.0
+aiofiles==23.2.1
+email-validator==2.1.0
+pyjwt==2.7.0
+requests==2.31.0
+
+# Optional dependencies (comment out if not needed for basic functionality)
+# rembg==2.0.30
+# mediapipe==0.10.9
+# opencv-python==4.6.0.66
+# numpy==1.23.5
+# scipy==1.9.3
+# scikit-image==0.19.3

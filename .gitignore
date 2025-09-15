@@ -148,3 +148,6 @@ logs/
 # Temporary files
 tmp/
 temp/
+
+.cursor/
+
