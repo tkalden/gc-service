@@ -7,7 +7,7 @@ import aiofiles
 from typing import Optional, Tuple
 from fastapi import UploadFile
 from supabase import create_client, Client
-from config import SUPABASE_URL, SUPABASE_SERVICE_KEY, STORAGE_BUCKET, PROFILE_PICTURES_BUCKET, DIGITAL_TWIN_BUCKET, MAX_FILE_SIZE, ALLOWED_IMAGE_TYPES
+from config.settings import get_settings
 import logging
 
 logger = logging.getLogger(__name__)
@@ -18,7 +18,8 @@ DEFAULT_CONTENT_TYPE = "image/jpeg"
 
 # Initialize Supabase client with error handling
 try:
-    supabase: Client = create_client(SUPABASE_URL, SUPABASE_SERVICE_KEY)
+    settings = get_settings()
+    supabase: Client = create_client(settings.supabase_url, settings.supabase_service_key)
     logger.info("Supabase storage client initialized successfully")
 except Exception as e:
     logger.error(f"Failed to initialize Supabase storage client: {str(e)}")
@@ -27,6 +28,11 @@ except Exception as e:
 
 class StorageService:
     """Service class for storage operations"""
+    
+    @staticmethod
+    def _get_settings():
+        """Get application settings"""
+        return get_settings()
     
     # Old helper methods removed - path generation now handled in upload_image_unified
     
@@ -37,8 +43,9 @@ class StorageService:
             logger.error("Empty file content")
             return False
         
-        if len(content) > MAX_FILE_SIZE:
-            logger.error(f"File too large: {len(content)} bytes (max: {MAX_FILE_SIZE})")
+        settings = StorageService._get_settings()
+        if len(content) > settings.max_file_size:
+            logger.error(f"File too large: {len(content)} bytes (max: {settings.max_file_size})")
             return False
         
         return True
@@ -54,7 +61,8 @@ class StorageService:
             logger.info(f"Uploading {len(content)} bytes to {bucket}/{file_path}")
             
             # For profile pictures, try to delete existing file first to avoid duplicates
-            if bucket == PROFILE_PICTURES_BUCKET:
+            settings = StorageService._get_settings()
+            if bucket == settings.profile_pictures_bucket:
                 try:
                     supabase.storage.from_(bucket).remove([file_path])
                     logger.info(f"Removed existing profile picture: {file_path}")
@@ -112,7 +120,8 @@ class StorageService:
             filename = f"{uuid.uuid4()}.{file_extension}"
         
         # Generate file path
-        if bucket_name == PROFILE_PICTURES_BUCKET:
+        settings = StorageService._get_settings()
+        if bucket_name == settings.profile_pictures_bucket:
             # For profile pictures, store directly in bucket root without user folder
             file_path = filename
         elif user_id:
@@ -227,24 +236,25 @@ class StorageService:
         actual_path = image_path
         
         # Check if path includes bucket name (for backward compatibility)
+        settings = StorageService._get_settings()
         if image_path.startswith('digital-twin/'):
-            bucket = DIGITAL_TWIN_BUCKET
+            bucket = settings.digital_twin_bucket
             actual_path = image_path[12:]  # Remove 'digital-twin/' prefix
         elif image_path.startswith('profile-picture/'):
-            bucket = PROFILE_PICTURES_BUCKET
+            bucket = settings.profile_pictures_bucket
             actual_path = image_path[16:]  
         elif image_path.startswith('clothing-image/'):
-            bucket = STORAGE_BUCKET
+            bucket = settings.storage_bucket
             actual_path = image_path[15:]
         else:
             # Path doesn't include bucket name, try to determine from context
             # For avatar images (original/processed), assume digital-twin bucket
             if 'original' in image_path.lower() or 'processed' in image_path.lower():
-                bucket = DIGITAL_TWIN_BUCKET
+                bucket = settings.digital_twin_bucket
             elif 'avatar' in image_path.lower():
-                bucket = DIGITAL_TWIN_BUCKET
+                bucket = settings.digital_twin_bucket
             else:
-                bucket = STORAGE_BUCKET  # Default to clothing images
+                bucket = settings.storage_bucket  # Default to clothing images
         
         # Remove any leading slash that might have been created
         if actual_path.startswith('/'):
@@ -273,12 +283,13 @@ class StorageService:
         """Validate uploaded file"""
         try:
             # Check file size
-            if hasattr(file, 'size') and file.size > MAX_FILE_SIZE:
-                logger.error(f"File too large: {file.size} bytes (max: {MAX_FILE_SIZE})")
+            settings = StorageService._get_settings()
+            if hasattr(file, 'size') and file.size > settings.max_file_size:
+                logger.error(f"File too large: {file.size} bytes (max: {settings.max_file_size})")
                 return False
             
             # Check content type
-            if file.content_type not in ALLOWED_IMAGE_TYPES:
+            if file.content_type not in settings.allowed_image_types_list:
                 logger.error(f"Invalid file type: {file.content_type}")
                 return False
             
@@ -296,14 +307,15 @@ class StorageService:
     @staticmethod
     def _determine_bucket_from_path(image_path: str) -> str:
         """Determine the appropriate bucket based on the image path"""
+        settings = StorageService._get_settings()
         if image_path.startswith('digital-twin/'):
-            return DIGITAL_TWIN_BUCKET
+            return settings.digital_twin_bucket
         elif image_path.startswith('profile-picture/'):
-            return PROFILE_PICTURES_BUCKET
+            return settings.profile_pictures_bucket
         elif image_path.startswith('clothing-image/'):
-            return STORAGE_BUCKET
+            return settings.storage_bucket
         else:
             # Fallback: assume it's a clothing image if no bucket prefix
             logger.warning(f"No bucket prefix found in path: {image_path}, defaulting to clothing-image")
-            return STORAGE_BUCKET   
+            return settings.storage_bucket   
     

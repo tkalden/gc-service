@@ -4,7 +4,7 @@ Database operations using Supabase
 
 from typing import List, Optional
 from supabase import create_client, Client
-from config import SUPABASE_URL, SUPABASE_SERVICE_KEY
+from config.settings import get_settings
 from models import ClothingItem, ClothingItemCreate, ClothingItemUpdate, Avatar, AvatarCreate, TryOnResult, Outfit, OutfitCreate, OutfitUpdate
 import logging
 
@@ -12,7 +12,8 @@ logger = logging.getLogger(__name__)
 
 # Initialize Supabase client with error handling
 try:
-    supabase: Client = create_client(SUPABASE_URL, SUPABASE_SERVICE_KEY)
+    settings = get_settings()
+    supabase: Client = create_client(settings.supabase_url, settings.supabase_service_key)
     logger.info("Supabase client initialized successfully")
 except Exception as e:
     logger.error(f"Failed to initialize Supabase client: {str(e)}")

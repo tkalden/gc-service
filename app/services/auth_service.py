@@ -6,14 +6,15 @@ import jwt
 from datetime import datetime, timedelta
 from typing import Optional, Dict, Any
 from supabase import create_client, Client
-from config import SUPABASE_URL, SUPABASE_SERVICE_KEY
+from config.settings import get_settings
 import logging
 
 logger = logging.getLogger(__name__)
 
 # Initialize Supabase client for auth operations
 try:
-    supabase: Client = create_client(SUPABASE_URL, SUPABASE_SERVICE_KEY)
+    settings = get_settings()
+    supabase: Client = create_client(settings.supabase_url, settings.supabase_service_key)
     logger.info("Supabase auth client initialized successfully")
 except Exception as e:
     logger.error(f"Failed to initialize Supabase auth client: {str(e)}")
