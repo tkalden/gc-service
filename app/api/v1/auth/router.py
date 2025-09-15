@@ -7,7 +7,7 @@ from app.core.logging import get_logger
 from app.core.exceptions import AuthenticationException
 from app.services.auth_service import AuthService
 from app.models.models import UserRegister, UserLogin, AuthResponse, TokenResponse
-from app.middleware.auth import get_current_user, get_current_user_id
+from app.middleware.middleware import get_current_user, get_current_user_id
 
 logger = get_logger(__name__)
 router = APIRouter()
