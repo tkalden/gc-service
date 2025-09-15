@@ -86,9 +86,13 @@ def get_logging_config() -> Dict[str, Any]:
     # Add file handlers only in non-production environments
     if settings.environment != "production":
         config["loggers"]["app"]["handlers"] = ["console", "file"]
+        config["loggers"]["uvicorn.error"]["handlers"] = ["console", "error_file"]
     else:
-        # In production, use structured logging
+        # In production, use only console logging (no file handlers)
         config["loggers"]["app"]["handlers"] = ["console"]
+        config["loggers"]["uvicorn.error"]["handlers"] = ["console"]
+        # Remove file handlers from config in production
+        config["handlers"] = {k: v for k, v in config["handlers"].items() if "file" not in k}
     
     return config
 
@@ -97,8 +101,14 @@ def setup_logging() -> None:
     """Setup application logging"""
     import os
     
-    # Create logs directory if it doesn't exist
-    os.makedirs("logs", exist_ok=True)
+    # Only create logs directory in non-production environments
+    # Vercel serverless environment has read-only file system
+    if get_settings().environment != "production":
+        try:
+            os.makedirs("logs", exist_ok=True)
+        except OSError:
+            # If we can't create logs directory, continue without file logging
+            pass
     
     # Configure logging
     logging.config.dictConfig(get_logging_config())
