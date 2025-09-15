@@ -118,7 +118,7 @@ class AuthService:
             
             # Get the current user with the token
             user_response = supabase.auth.get_user(token)
-            
+                        
             if user_response and user_response.user:
                 logger.info(f"Token verified successfully for user: {user_response.user.email}")
                 return {
@@ -129,6 +129,7 @@ class AuthService:
                 }
             else:
                 logger.warning("Token verification failed - no user found")
+                logger.warning(f"User response was: {user_response}")
                 return None
                 
         except Exception as e:

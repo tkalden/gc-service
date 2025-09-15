@@ -10,16 +10,29 @@ from auth import AuthService
 
 logger = logging.getLogger(__name__)
 
-# HTTP Bearer token scheme
-security = HTTPBearer()
+# HTTP Bearer token scheme with auto_error=False to handle errors ourselves
+security = HTTPBearer(auto_error=False)
 
-async def get_current_user(credentials: HTTPAuthorizationCredentials = Depends(security)) -> Dict[str, Any]:
+async def get_current_user(credentials: Optional[HTTPAuthorizationCredentials] = Depends(security)) -> Dict[str, Any]:
     """
     Dependency to get current authenticated user
     """
     try:
-        token = credentials.credentials
+        if credentials:
+            logger.info(f"Credentials scheme: {credentials.scheme}")
+            logger.info(f"Credentials token preview: {credentials.credentials[:20]}...")
         
+        if not credentials:
+            logger.warning("No credentials provided")
+            logger.warning("This means the HTTPBearer security scheme did not find an Authorization header")
+            raise HTTPException(
+                status_code=status.HTTP_401_UNAUTHORIZED,
+                detail="No authentication credentials provided",
+                headers={"WWW-Authenticate": "Bearer"},
+            )
+        
+        token = credentials.credentials
+        logger.info(f"Authentication attempt with token: {token[:20]}...")
         # Verify token with Supabase
         user_info = await AuthService.verify_token(token)
         
@@ -44,7 +57,7 @@ async def get_current_user(credentials: HTTPAuthorizationCredentials = Depends(s
             headers={"WWW-Authenticate": "Bearer"},
         )
 
-async def get_current_user_id(credentials: HTTPAuthorizationCredentials = Depends(security)) -> str:
+async def get_current_user_id(credentials: Optional[HTTPAuthorizationCredentials] = Depends(security)) -> str:
     """
     Dependency to get current user ID
     """

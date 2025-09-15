@@ -369,7 +369,7 @@ class AvatarService:
             if avatar_image.mode != 'RGB':
                 avatar_image = avatar_image.convert('RGB')
             
-            # Download clothing image
+            # Download clothing
             clothing_url = StorageService.get_image_url(clothing_path) if clothing_path else None
             clothing_image = None
             

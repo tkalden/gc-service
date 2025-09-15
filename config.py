@@ -22,12 +22,13 @@ if not SUPABASE_SERVICE_KEY:
 HOST = os.getenv("HOST", "0.0.0.0")
 PORT = int(os.getenv("PORT", 8000))
 DEBUG = os.getenv("DEBUG", "True").lower() == "true"
+BACKEND_URL = os.getenv("BACKEND_URL", f"http://{HOST}:{PORT}")
 
 # CORS Configuration
-ALLOWED_ORIGINS = os.getenv("ALLOWED_ORIGINS", "http://localhost:3000,http://localhost:8081,http://localhost:8082,exp://192.168.1.169:8082,exp://192.168.1.100:8081").split(",")
+ALLOWED_ORIGINS = os.getenv("ALLOWED_ORIGINS", "http://localhost:3000,http://localhost:8081,http://localhost:8082,exp://192.168.1.169:8082,exp://192.168.1.100:8081,exp://192.168.1.157:8082,http://192.168.1.157:8082").split(",")
 
 # Storage Configuration
-STORAGE_BUCKET = "clothing-images"
+STORAGE_BUCKET = "clothing-image"
 PROFILE_PICTURES_BUCKET = "profile-picture"
 DIGITAL_TWIN_BUCKET = "digital-twin"
 MAX_FILE_SIZE = 10 * 1024 * 1024  # 10MB

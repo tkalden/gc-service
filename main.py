@@ -2,31 +2,37 @@
 FastAPI main application for Closet App Backend
 """
 
-from fastapi import FastAPI, HTTPException, UploadFile, File, Form, Depends
+from fastapi import FastAPI, HTTPException, UploadFile, File, Form, Depends, Request, Query
 from fastapi.middleware.cors import CORSMiddleware
-from fastapi.responses import JSONResponse
+from fastapi.responses import JSONResponse, Response
 from typing import List, Optional
 import logging
 import time
 from datetime import datetime
 
-from config import HOST, PORT, DEBUG, ALLOWED_ORIGINS, PROFILE_PICTURES_BUCKET, DIGITAL_TWIN_BUCKET
+from config import HOST, PORT, DEBUG, ALLOWED_ORIGINS, PROFILE_PICTURES_BUCKET, DIGITAL_TWIN_BUCKET, STORAGE_BUCKET, BACKEND_URL, MAX_FILE_SIZE
 from models import (
     ClothingItem, ClothingItemCreate, ClothingItemUpdate, ClothingItemResponse,
-    ClothingItemsResponse, ImageUploadResponse, DeleteResponse, ErrorResponse,
+    ClothingItemsResponse, ImageUploadResponse, Base64UploadRequest, DeleteResponse, ErrorResponse,
     UserRegister, UserLogin, AuthResponse, TokenResponse,
-    Avatar, AvatarCreate, AvatarResponse, TryOnRequest, TryOnResponse
+    Avatar, AvatarCreate, AvatarResponse, TryOnRequest, TryOnResponse,
+    Outfit, OutfitCreate, OutfitUpdate, OutfitResponse, OutfitsResponse, OutfitFilterRequest
 )
 from database import DatabaseService
 from storage import StorageService
 from auth import AuthService
 from background_removal import background_removal_service
 from avatar_service import avatar_service
+from outfit_service import outfit_service
 from middleware import get_current_user, get_current_user_id
 
 # Configure logging
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
+
+# Constants
+CLOTHING_ITEM_NOT_FOUND = "Clothing item not found"
+# Constants removed - validation now handled in unified endpoint
 
 # Create FastAPI app
 app = FastAPI(
@@ -44,13 +50,10 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
-
-
 @app.get("/")
 async def root():
     """Health check endpoint"""
     return {"message": "Closet App API is running!", "timestamp": datetime.now()}
-
 
 @app.get("/health")
 async def health_check():
@@ -68,9 +71,6 @@ async def health_check():
             status_code=503,
             content={"status": "unhealthy", "error": str(e)}
         )
-
-
-# Authentication Endpoints
 
 @app.post("/api/auth/register", response_model=AuthResponse)
 async def register_user(user_data: UserRegister):
@@ -217,7 +217,7 @@ async def get_clothing_item(item_id: str):
     try:
         item = await DatabaseService.get_clothing_item_by_id(item_id)
         if not item:
-            raise HTTPException(status_code=404, detail="Clothing item not found")
+            raise HTTPException(status_code=404, detail=CLOTHING_ITEM_NOT_FOUND)
         
         return ClothingItemResponse(
             success=True,
@@ -235,6 +235,8 @@ async def get_clothing_item(item_id: str):
 async def create_clothing_item(item_data: ClothingItemCreate, current_user_id: str = Depends(get_current_user_id)):
     """Create a new clothing item for the current user"""
     try:
+        logger.info(f"Received clothing item data: {item_data.dict()}")
+        logger.info(f"Image path in request: {item_data.image_path}")
         item = await DatabaseService.create_clothing_item(item_data, current_user_id)
         return ClothingItemResponse(
             success=True,
@@ -252,7 +254,7 @@ async def update_clothing_item(item_id: str, update_data: ClothingItemUpdate):
     try:
         item = await DatabaseService.update_clothing_item(item_id, update_data)
         if not item:
-            raise HTTPException(status_code=404, detail="Clothing item not found")
+            raise HTTPException(status_code=404, detail=CLOTHING_ITEM_NOT_FOUND)
         
         return ClothingItemResponse(
             success=True,
@@ -273,7 +275,7 @@ async def delete_clothing_item(item_id: str):
         # Get the item first to find the image path
         item = await DatabaseService.get_clothing_item_by_id(item_id)
         if not item:
-            raise HTTPException(status_code=404, detail="Clothing item not found")
+            raise HTTPException(status_code=404, detail=CLOTHING_ITEM_NOT_FOUND)
         
         # Delete the image if it exists
         if item.image_path:
@@ -297,76 +299,62 @@ async def delete_clothing_item(item_id: str):
 
 # Image Upload Endpoints
 
-@app.post("/api/upload", response_model=ImageUploadResponse)
-async def upload_image(file: UploadFile = File(...), folder: str = Form("user-clothes"), current_user_id: str = Depends(get_current_user_id)):
-    """Upload an image file for the current user"""
-    try:
-        logger.info(f"Upload request received - User: {current_user_id}, Folder: {folder}")
-        logger.info(f"File details - Name: {file.filename}, Content-Type: {file.content_type}, Size: {file.size}")
-        
-        if not file.filename:
-            raise HTTPException(status_code=400, detail="No filename provided")
-        
-        if not file.content_type or not file.content_type.startswith('image/'):
-            raise HTTPException(status_code=400, detail=f"Invalid file type: {file.content_type}")
-        
-        image_path = await StorageService.upload_image(file, folder, current_user_id)
-        if not image_path:
-            raise HTTPException(status_code=400, detail="Failed to upload image")
-        
-        return ImageUploadResponse(
-            success=True,
-            image_path=image_path,
-            message="Image uploaded successfully"
-        )
-    except HTTPException:
-        raise
-    except Exception as e:
-        logger.error(f"Error uploading image: {str(e)}")
-        raise HTTPException(status_code=500, detail=str(e))
+# Helper functions removed - validation and bucket determination now handled in unified endpoint
 
-
-@app.post("/api/upload-base64", response_model=ImageUploadResponse)
-async def upload_image_base64(
-    request: dict,
+@app.post("/api/upload/unified", response_model=ImageUploadResponse)
+async def upload_image_unified(
+    file: UploadFile = File(...),
+    bucket_name: str = Form(...),
+    filename: Optional[str] = Form(None),
     current_user_id: str = Depends(get_current_user_id)
 ):
-    """Upload an image file as base64 for React Native compatibility"""
+    """
+    Unified image upload endpoint for all image types
+    
+    Args:
+        file: Image file to upload
+        bucket_name: Supabase bucket name (clothing-image, digital-twin, profile-picture)
+        filename: Optional filename (if not provided, generates uuid.jpg)
+        current_user_id: Current user ID for folder structure
+    
+    Returns:
+        ImageUploadResponse with success status and image path
+    """
     try:
-        logger.info(f"Base64 upload request received - User: {current_user_id}")
+        logger.info(f"Unified upload request - User: {current_user_id}, Bucket: {bucket_name}, Filename: {filename}")
+        # Read file content to get size
+        file_content = await file.read()
+        file_size = len(file_content)
+        logger.info(f"File details - Name: {file.filename}, Content-Type: {file.content_type}, Size: {file_size}")
         
-        file_data = request.get('file_data')
-        filename = request.get('filename')
-        folder = request.get('folder', 'user-clothes')
-        content_type = request.get('content_type', 'image/jpeg')
+        # Reset file pointer for later use
+        await file.seek(0)
         
-        if not file_data:
-            raise HTTPException(status_code=400, detail="No file data provided")
-        
-        if not filename:
+        # Validate file
+        if not file.filename:
             raise HTTPException(status_code=400, detail="No filename provided")
         
-        # Convert base64 to bytes
-        import base64
-        try:
-            file_bytes = base64.b64decode(file_data)
-        except Exception as e:
-            raise HTTPException(status_code=400, detail=f"Invalid base64 data: {str(e)}")
+        if not file.content_type or not file.content_type.startswith('image/'):
+            raise HTTPException(status_code=400, detail=f"Invalid file type: {file.content_type}")
         
-        # Create a mock UploadFile object
-        from fastapi import UploadFile
-        from io import BytesIO
+        # Validate bucket name
+        valid_buckets = [STORAGE_BUCKET, DIGITAL_TWIN_BUCKET, PROFILE_PICTURES_BUCKET]
+        if bucket_name not in valid_buckets:
+            raise HTTPException(status_code=400, detail=f"Invalid bucket name. Must be one of: {valid_buckets}")
         
-        file_obj = BytesIO(file_bytes)
-        upload_file = UploadFile(
-            file=file_obj,
+        # Validate file content
+        if not file_content:
+            raise HTTPException(status_code=400, detail="Empty file received")
+        
+        # Upload using unified method
+        image_path = await StorageService.upload_image_unified(
+            content=file_content,
+            bucket_name=bucket_name,
             filename=filename,
-            headers={"content-type": content_type}
+            user_id=current_user_id,
+            content_type=file.content_type
         )
-        # Set the size attribute for validation
-        upload_file.size = len(file_bytes)
         
-        image_path = await StorageService.upload_image(upload_file, folder, current_user_id)
         if not image_path:
             raise HTTPException(status_code=400, detail="Failed to upload image")
         
@@ -375,99 +363,49 @@ async def upload_image_base64(
             image_path=image_path,
             message="Image uploaded successfully"
         )
+        
     except HTTPException:
         raise
     except Exception as e:
-        logger.error(f"Error uploading base64 image: {str(e)}")
+        logger.error(f"Error in unified upload: {str(e)}")
         raise HTTPException(status_code=500, detail=str(e))
 
+# Old upload endpoint removed - use /api/upload/unified instead
 
-@app.post("/api/clothes/{item_id}/image", response_model=ClothingItemResponse)
-async def upload_clothing_item_image(
-    item_id: str,
-    file: UploadFile = File(...),
-    folder: str = Form("user-clothes")
-):
-    """Upload an image for a specific clothing item"""
+
+# Old base64 upload endpoint removed - use /api/upload/unified instead
+
+
+# Old multiple upload endpoint removed - use /api/upload/unified instead
+
+
+@app.get("/api/images/{path:path}")
+async def serve_image(path: str):
+    """Serve images from Supabase storage"""
     try:
-        # Check if item exists
-        item = await DatabaseService.get_clothing_item_by_id(item_id)
-        if not item:
-            raise HTTPException(status_code=404, detail="Clothing item not found")
+        logger.info(f"Image request for path: {path}")
+        image_content, content_type = await StorageService.download_image_content(path)
         
-        # Delete old image if it exists
-        if item.image_path:
-            await StorageService.delete_image(item.image_path)
+        if not image_content:
+            logger.error(f"Failed to download image content for path: {path}")
+            raise HTTPException(status_code=404, detail="Image not found")
         
-        # Upload new image
-        image_path = await StorageService.upload_image(file, folder)
-        if not image_path:
-            raise HTTPException(status_code=400, detail="Failed to upload image")
-        
-        # Update item with new image path
-        updated_item = await DatabaseService.update_clothing_item_image(item_id, image_path)
-        if not updated_item:
-            raise HTTPException(status_code=500, detail="Failed to update clothing item")
-        
-        return ClothingItemResponse(
-            success=True,
-            data=updated_item,
-            message="Image uploaded and clothing item updated successfully"
+        # Return the image content directly
+        from fastapi.responses import Response
+        return Response(
+            content=image_content,
+            media_type=content_type,
+            headers={
+                'Cache-Control': 'public, max-age=3600',
+                'Content-Length': str(len(image_content))
+            }
         )
-    except HTTPException:
-        raise
+        
     except Exception as e:
-        logger.error(f"Error uploading image for clothing item {item_id}: {str(e)}")
-        raise HTTPException(status_code=500, detail=str(e))
+        logger.error(f"Error serving image {path}: {str(e)}")
+        raise HTTPException(status_code=404, detail="Image not found")
 
 
-@app.post("/api/upload/multiple", response_model=dict)
-async def upload_multiple_images(
-    files: List[UploadFile] = File(...),
-    folder: str = Form("user-clothes")
-):
-    """Upload multiple image files"""
-    try:
-        uploaded_paths = await StorageService.upload_multiple_images(files, folder)
-        return {
-            "success": True,
-            "uploaded_paths": uploaded_paths,
-            "count": len(uploaded_paths),
-            "message": f"Successfully uploaded {len(uploaded_paths)} images"
-        }
-    except Exception as e:
-        logger.error(f"Error uploading multiple images: {str(e)}")
-        raise HTTPException(status_code=500, detail=str(e))
-
-
-@app.post("/api/upload/profile-picture", response_model=ImageUploadResponse)
-async def upload_profile_picture(file: UploadFile = File(...), current_user_id: str = Depends(get_current_user_id)):
-    """Upload a profile picture for the current user"""
-    try:
-        logger.info(f"Profile picture upload request received - User: {current_user_id}")
-        logger.info(f"File details - Name: {file.filename}, Content-Type: {file.content_type}, Size: {file.size}")
-        
-        if not file.filename:
-            raise HTTPException(status_code=400, detail="No filename provided")
-        
-        if not file.content_type or not file.content_type.startswith('image/'):
-            raise HTTPException(status_code=400, detail=f"Invalid file type: {file.content_type}")
-        
-        # Upload to profile-pictures bucket with user ID folder
-        image_path = await StorageService.upload_image(file, "profile-pictures", current_user_id, PROFILE_PICTURES_BUCKET)
-        if not image_path:
-            raise HTTPException(status_code=400, detail="Failed to upload profile picture")
-        
-        return ImageUploadResponse(
-            success=True,
-            image_path=image_path,
-            message="Profile picture uploaded successfully"
-        )
-    except HTTPException:
-        raise
-    except Exception as e:
-        logger.error(f"Error uploading profile picture: {str(e)}")
-        raise HTTPException(status_code=500, detail=str(e))
 
 
 # Utility Endpoints
@@ -631,7 +569,13 @@ async def upload_avatar(
     """Upload and process user avatar for digital twin creation"""
     try:
         logger.info(f"Avatar upload request received - User: {current_user_id}")
-        logger.info(f"File details - Name: {file.filename}, Content-Type: {file.content_type}, Size: {file.size}")
+        # Read file content to get size
+        file_content = await file.read()
+        file_size = len(file_content)
+        logger.info(f"File details - Name: {file.filename}, Content-Type: {file.content_type}, Size: {file_size}")
+        
+        # Reset file pointer for later use
+        await file.seek(0)
         
         if not file.filename:
             raise HTTPException(status_code=400, detail="No filename provided")
@@ -646,16 +590,33 @@ async def upload_avatar(
                 detail="Avatar service not available. Please install MediaPipe: pip install mediapipe"
             )
         
-        # Read file content once for both upload and processing
-        file_content = await file.read()
+        # Check for existing avatar to clean up old files
+        existing_avatar = None
+        try:
+            existing_avatar = await DatabaseService.get_user_avatar(current_user_id)
+            if existing_avatar:
+                logger.info(f"Found existing avatar for user: {current_user_id}")
+                logger.info(f"Existing avatar paths - Original: {existing_avatar.original_image_path}, Processed: {existing_avatar.processed_image_path}")
+            else:
+                logger.info(f"No existing avatar found in database for user: {current_user_id}")
+        except Exception as e:
+            logger.warning(f"Failed to check existing avatar: {str(e)}")
+        
+        # Validate file content
         if not file_content:
             raise HTTPException(status_code=400, detail="Empty file received")
         
         logger.info(f"File content size: {len(file_content)} bytes")
         
-        # Upload original image to digital-twin bucket using content directly
-        original_image_path = await StorageService.upload_image_content(
-            file_content, file.filename, "avatars/original", current_user_id, DIGITAL_TWIN_BUCKET
+        # Upload original image to digital-twin bucket using unified method
+        # Use timestamp to ensure unique filename
+        timestamp = int(time.time() * 1000)
+        original_image_path = await StorageService.upload_image_unified(
+            content=file_content,
+            bucket_name=DIGITAL_TWIN_BUCKET,
+            filename=f"original_{timestamp}",
+            user_id=current_user_id,
+            content_type=file.content_type
         )
         if not original_image_path:
             raise HTTPException(status_code=400, detail="Failed to upload avatar image")
@@ -683,13 +644,17 @@ async def upload_avatar(
                 import base64
                 processed_data = base64.b64decode(avatar_data["processed_image_base64"])
                 
-                processed_image_path = await StorageService.upload_image_content(
-                    processed_data, f"processed_{file.filename}", "avatars/processed", current_user_id, DIGITAL_TWIN_BUCKET
+                processed_image_path = await StorageService.upload_image_unified(
+                    content=processed_data,
+                    bucket_name=DIGITAL_TWIN_BUCKET,
+                    filename=f"processed_{timestamp}",
+                    user_id=current_user_id,
+                    content_type="image/jpeg"
                 )
             except Exception as e:
                 logger.warning(f"Failed to save processed image: {str(e)}")
         
-        # Create avatar record in database
+        # Create or update avatar record in database
         avatar_db_data = {
             "original_image_path": original_image_path,
             "processed_image_path": processed_image_path,
@@ -698,9 +663,34 @@ async def upload_avatar(
             "confidence_score": quality_score
         }
         
-        avatar = await DatabaseService.create_avatar(avatar_db_data, current_user_id)
+        avatar = await DatabaseService.upsert_avatar(avatar_db_data, current_user_id)
         if not avatar:
-            raise HTTPException(status_code=500, detail="Failed to create avatar record")
+            # Clean up uploaded files if database operation failed
+            await StorageService.delete_image(original_image_path)
+            if processed_image_path:
+                await StorageService.delete_image(processed_image_path)
+            raise HTTPException(status_code=500, detail="Failed to create/update avatar record")
+        
+        # Clean up old avatar files after successful database operation
+        if existing_avatar:
+            try:
+                logger.info(f"Cleaning up old avatar files for user: {current_user_id}")
+                
+                # Delete old original image if it's different from the new one
+                if (existing_avatar.original_image_path and 
+                    existing_avatar.original_image_path != original_image_path):
+                    delete_result = await StorageService.delete_image(existing_avatar.original_image_path)
+                    logger.info(f"Old original image deletion result: {delete_result}")
+                
+                # Delete old processed image if it's different from the new one
+                if (existing_avatar.processed_image_path and 
+                    existing_avatar.processed_image_path != processed_image_path):
+                    delete_result = await StorageService.delete_image(existing_avatar.processed_image_path)
+                    logger.info(f"Old processed image deletion result: {delete_result}")
+                    
+            except Exception as e:
+                logger.warning(f"Failed to clean up old avatar files: {str(e)}")
+                # Don't fail the entire operation if cleanup fails
         
         return AvatarResponse(
             success=True,
@@ -856,6 +846,395 @@ async def get_avatar_service_status():
         raise HTTPException(status_code=500, detail=str(e))
 
 
+# Outfit Endpoints
+
+@app.post("/api/outfits", response_model=OutfitResponse)
+async def create_outfit(
+    outfit_data: OutfitCreate,
+    current_user_id: str = Depends(get_current_user_id)
+):
+    """Create a new outfit (for outfits with existing image URLs)"""
+    try:
+        # Convert Pydantic model to dict
+        outfit_dict = outfit_data.dict()
+        
+        # Use service to create outfit
+        outfit = await outfit_service.create_outfit_simple(outfit_dict, current_user_id)
+        
+        return OutfitResponse(
+            success=True,
+            data=outfit,
+            message="Outfit created successfully"
+        )
+        
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Error creating outfit: {str(e)}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+# WARNING: This endpoint is for outfit-specific images, NOT clothing item images
+# Regular outfit creation should use /api/outfits/generate which references existing clothing items
+@app.post("/api/outfits/upload", response_model=OutfitResponse)
+async def create_outfit_with_images(
+    name: str = Form(...),
+    description: Optional[str] = Form(None),
+    clothing_item_ids: Optional[str] = Form(None),
+    outfit_date: Optional[str] = Form(None),
+    season: Optional[str] = Form(None),
+    occasion: Optional[str] = Form(None),
+    weather_condition: Optional[str] = Form(None),
+    rating: Optional[int] = Form(None),
+    is_favorite: bool = Form(False),
+    tags: Optional[str] = Form(None),
+    files: List[UploadFile] = File(...),
+    current_user_id: str = Depends(get_current_user_id)
+):
+    """Create a new outfit with image uploads"""
+    try:
+        # Prepare outfit data from form
+        outfit_data = {
+            "name": name,
+            "description": description,
+            "clothing_item_ids": clothing_item_ids,
+            "outfit_date": outfit_date,
+            "season": season,
+            "occasion": occasion,
+            "weather_condition": weather_condition,
+            "rating": rating,
+            "is_favorite": is_favorite,
+            "tags": tags
+        }
+        
+        # Use service to create outfit with images
+        outfit = await outfit_service.create_outfit_with_images(
+            outfit_data=outfit_data,
+            image_files=files,
+            user_id=current_user_id
+        )
+        
+        return OutfitResponse(
+            success=True,
+            data=outfit,
+            message=f"Outfit created successfully with {len(files)} images"
+        )
+        
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Error creating outfit with images: {str(e)}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@app.post("/api/outfits/generate", response_model=OutfitResponse)
+async def generate_outfit_from_items(
+    outfit_data: OutfitCreate,
+    current_user_id: str = Depends(get_current_user_id)
+):
+    """Create outfit from clothing items (no image generation needed)"""
+    try:
+        logger.info(f"Creating outfit from clothing items for user: {current_user_id}")
+        
+        outfit_dict = outfit_data.dict()
+        clothing_item_ids = outfit_dict.get("clothing_item_ids", [])
+        
+        if not clothing_item_ids:
+            raise HTTPException(status_code=400, detail="No clothing items provided")
+        
+        # Verify clothing items exist and belong to user (security check + race condition protection)
+        clothing_items = await DatabaseService.get_clothing_items_by_ids(clothing_item_ids, current_user_id)
+        
+        if not clothing_items:
+            raise HTTPException(status_code=400, detail="No valid clothing items found")
+        
+        # Log warning if some items are missing (but don't fail the request)
+        if len(clothing_items) != len(clothing_item_ids):
+            missing_count = len(clothing_item_ids) - len(clothing_items)
+            logger.warning(f"User {current_user_id} tried to create outfit with {missing_count} missing/invalid clothing items")
+            # Continue with the valid items instead of failing
+        
+        outfit = await outfit_service.create_outfit_simple(outfit_dict, current_user_id)
+        
+        if not outfit:
+            raise HTTPException(status_code=500, detail="Failed to create outfit")
+        
+        return OutfitResponse(
+            success=True,
+            data=outfit,
+            message=f"Outfit created successfully with {len(clothing_items)} clothing items"
+        )
+        
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Error creating outfit: {str(e)}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@app.get("/api/outfits", response_model=OutfitsResponse)
+async def get_user_outfits(
+    current_user_id: str = Depends(get_current_user_id),
+    season: Optional[str] = None,
+    occasion: Optional[str] = None,
+    weather_condition: Optional[str] = None,
+    is_favorite: Optional[bool] = None,
+    start_date: Optional[str] = None,
+    end_date: Optional[str] = None,
+    min_rating: Optional[int] = None,
+    tags: Optional[str] = None,  # Comma-separated tags
+    limit: int = 20,
+    offset: int = 0
+):
+    """Get user's outfits with optional filtering"""
+    try:
+        logger.info(f"Getting outfits for user: {current_user_id}")
+        logger.info(f"Request parameters - start_date: {start_date}, end_date: {end_date}, season: {season}, occasion: {occasion}")
+        
+        # Prepare filters
+        filters = {}
+        if season:
+            filters["season"] = season
+        if occasion:
+            filters["occasion"] = occasion
+        if weather_condition:
+            filters["weather_condition"] = weather_condition
+        if is_favorite is not None:
+            filters["is_favorite"] = is_favorite
+        if start_date:
+            filters["start_date"] = start_date
+        if end_date:
+            filters["end_date"] = end_date
+        if min_rating:
+            filters["min_rating"] = min_rating
+        if tags:
+            # Parse comma-separated tags
+            filters["tags"] = [tag.strip() for tag in tags.split(",") if tag.strip()]
+        
+        logger.info(f"Prepared filters: {filters}")
+        
+        # Get outfits from database
+        outfits = await DatabaseService.get_user_outfits(
+            current_user_id, 
+            limit=limit, 
+            offset=offset, 
+            filters=filters if filters else None
+        )
+        
+        # Get total count for pagination
+        total_count = await DatabaseService.get_outfit_count(
+            current_user_id, 
+            filters=filters if filters else None
+        )
+        
+        return OutfitsResponse(
+            success=True,
+            data=outfits,
+            count=total_count,
+            message=f"Retrieved {len(outfits)} outfits"
+        )
+        
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Error getting user outfits: {str(e)}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@app.get("/api/outfits/{outfit_id}", response_model=OutfitResponse)
+async def get_outfit_by_id(
+    outfit_id: str,
+    current_user_id: str = Depends(get_current_user_id)
+):
+    """Get outfit by ID"""
+    try:
+        logger.info(f"Getting outfit {outfit_id} for user: {current_user_id}")
+        
+        outfit = await DatabaseService.get_outfit_by_id(outfit_id, current_user_id)
+        
+        if not outfit:
+            raise HTTPException(status_code=404, detail="Outfit not found")
+        
+        return OutfitResponse(
+            success=True,
+            data=outfit,
+            message="Outfit retrieved successfully"
+        )
+        
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Error getting outfit by ID: {str(e)}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@app.get("/api/outfits/{outfit_id}/details")
+async def get_outfit_details_with_clothing_items(
+    outfit_id: str,
+    current_user_id: str = Depends(get_current_user_id)
+):
+    """Get outfit details with clothing item information for rendering"""
+    try:
+        logger.info(f"Getting outfit details {outfit_id} for user: {current_user_id}")
+        
+        # Get outfit
+        outfit = await DatabaseService.get_outfit_by_id(outfit_id, current_user_id)
+        
+        if not outfit:
+            raise HTTPException(status_code=404, detail="Outfit not found")
+        
+        # Get clothing items for this outfit
+        clothing_items = []
+        if outfit.clothing_item_ids:
+            clothing_items = await DatabaseService.get_clothing_items_by_ids(
+                outfit.clothing_item_ids, 
+                current_user_id
+            )
+        
+        # Convert clothing items to dict format for frontend
+        clothing_items_data = []
+        for item in clothing_items:
+            clothing_items_data.append({
+                "id": item.id,
+                "name": item.name,
+                "category": item.category,
+                "image_path": item.image_path,
+                "seasons": item.seasons,
+                "metadata": item.metadata
+            })
+        
+        return {
+            "success": True,
+            "data": {
+                "outfit": {
+                    "id": outfit.id,
+                    "name": outfit.name,
+                    "description": outfit.description,
+                    "outfit_date": outfit.outfit_date,
+                    "season": outfit.season,
+                    "occasion": outfit.occasion,
+                    "weather_condition": outfit.weather_condition,
+                    "rating": outfit.rating,
+                    "is_favorite": outfit.is_favorite,
+                    "tags": outfit.tags,
+                    "is_collage": outfit.is_collage,
+                    "canvas_layout": outfit.canvas_layout,
+                    "created_at": outfit.created_at,
+                    "updated_at": outfit.updated_at
+                },
+                "clothing_items": clothing_items_data
+            },
+            "message": "Outfit details retrieved successfully"
+        }
+        
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Error getting outfit details: {str(e)}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@app.put("/api/outfits/{outfit_id}", response_model=OutfitResponse)
+async def update_outfit(
+    outfit_id: str,
+    outfit_data: OutfitUpdate,
+    current_user_id: str = Depends(get_current_user_id)
+):
+    """Update outfit"""
+    try:
+        logger.info(f"Updating outfit {outfit_id} for user: {current_user_id}")
+        
+        # Convert Pydantic model to dict, excluding None values
+        outfit_dict = outfit_data.dict(exclude_unset=True)
+        
+        # Update outfit in database
+        outfit = await DatabaseService.update_outfit(outfit_id, outfit_dict, current_user_id)
+        
+        if not outfit:
+            raise HTTPException(status_code=404, detail="Outfit not found or access denied")
+        
+        return OutfitResponse(
+            success=True,
+            data=outfit,
+            message="Outfit updated successfully"
+        )
+        
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Error updating outfit: {str(e)}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@app.delete("/api/outfits/{outfit_id}", response_model=DeleteResponse)
+async def delete_outfit(
+    outfit_id: str,
+    current_user_id: str = Depends(get_current_user_id)
+):
+    """Delete outfit and associated images"""
+    try:
+        # Use service to delete outfit with cleanup
+        await outfit_service.delete_outfit_with_cleanup(outfit_id, current_user_id)
+        
+        return DeleteResponse(
+            success=True,
+            message="Outfit and associated images deleted successfully"
+        )
+        
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Error deleting outfit: {str(e)}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@app.post("/api/outfits/filter", response_model=OutfitsResponse)
+async def filter_outfits(
+    filter_request: OutfitFilterRequest,
+    current_user_id: str = Depends(get_current_user_id)
+):
+    """Filter outfits with advanced criteria"""
+    try:
+        logger.info(f"Filtering outfits for user: {current_user_id}")
+        
+        # Convert Pydantic model to dict, excluding None values
+        filters = filter_request.dict(exclude_unset=True)
+        
+        # Remove pagination parameters from filters
+        limit = filters.pop("limit", 20)
+        offset = filters.pop("offset", 0)
+        
+        # Get filtered outfits from database
+        outfits = await DatabaseService.get_user_outfits(
+            current_user_id, 
+            limit=limit, 
+            offset=offset, 
+            filters=filters if filters else None
+        )
+        
+        # Get total count for pagination
+        total_count = await DatabaseService.get_outfit_count(
+            current_user_id, 
+            filters=filters if filters else None
+        )
+        
+        return OutfitsResponse(
+            success=True,
+            data=outfits,
+            count=total_count,
+            message=f"Retrieved {len(outfits)} filtered outfits"
+        )
+        
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Error filtering outfits: {str(e)}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+
+
 if __name__ == "__main__":
     import uvicorn
     uvicorn.run(app, host=HOST, port=PORT, reload=DEBUG)
+
