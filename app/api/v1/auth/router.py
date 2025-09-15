@@ -6,7 +6,7 @@ from fastapi import APIRouter, Depends, HTTPException, Form
 from app.core.logging import get_logger
 from app.core.exceptions import AuthenticationException
 from app.services.auth_service import AuthService
-from app.models.auth import UserRegister, UserLogin, AuthResponse, TokenResponse
+from app.models.models import UserRegister, UserLogin, AuthResponse, TokenResponse
 from app.middleware.auth import get_current_user, get_current_user_id
 
 logger = get_logger(__name__)
