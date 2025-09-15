@@ -73,15 +73,15 @@ uvicorn app.main:app --reload --host 0.0.0.0 --port 8000
 
 ### Environment Variables
 
-| Variable | Description | Required | Default |
-|----------|-------------|----------|---------|
-| `ENVIRONMENT` | Environment (development/staging/production) | Yes | development |
-| `SUPABASE_URL` | Supabase project URL | Yes | - |
-| `SUPABASE_SERVICE_KEY` | Supabase service key | Yes | - |
-| `SECRET_KEY` | JWT secret key | Yes | - |
-| `ALLOWED_ORIGINS` | CORS allowed origins | No | localhost origins |
-| `LOG_LEVEL` | Logging level | No | INFO |
-| `RATE_LIMIT_REQUESTS` | Rate limit per minute | No | 100 |
+| Variable               | Description                                  | Required | Default           |
+| ---------------------- | -------------------------------------------- | -------- | ----------------- |
+| `ENVIRONMENT`          | Environment (development/staging/production) | Yes      | development       |
+| `SUPABASE_URL`         | Supabase project URL                         | Yes      | -                 |
+| `SUPABASE_SERVICE_KEY` | Supabase service key                         | Yes      | -                 |
+| `SECRET_KEY`           | JWT secret key                               | Yes      | -                 |
+| `ALLOWED_ORIGINS`      | CORS allowed origins                         | No       | localhost origins |
+| `LOG_LEVEL`            | Logging level                                | No       | INFO              |
+| `RATE_LIMIT_REQUESTS`  | Rate limit per minute                        | No       | 100               |
 
 ### Environment-Specific Settings
 

@@ -1,18 +1,19 @@
-fastapi==0.87.0
-uvicorn[standard]==0.20.0
-supabase==2.0.0
-python-multipart==0.0.6
-python-dotenv==1.0.0
-pydantic==1.10.12
-httpx==0.24.1
-pillow==9.3.0
-aiofiles==23.2.1
-email-validator==2.1.0
-pyjwt==2.7.0
-rembg==2.0.30
-requests==2.31.0
-mediapipe==0.10.9
-opencv-python==4.6.0.66
-numpy==1.23.5
-scipy==1.9.3
-scikit-image==0.19.3
+# Vercel-compatible requirements for Python 3.12
+fastapi>=0.100.0
+uvicorn[standard]>=0.20.0
+pydantic>=2.0.0
+python-multipart>=0.0.6
+python-dotenv>=1.0.0
+
+# Database and Storage
+supabase>=2.0.0
+httpx>=0.24.0
+aiofiles>=23.0.0
+
+# Authentication and Security
+pyjwt>=2.7.0
+email-validator>=2.0.0
+
+# Image Processing (Core)
+pillow>=10.0.0
+requests>=2.30.0
