@@ -4,7 +4,8 @@ Application settings and configuration management
 
 import os
 from typing import List, Optional
-from pydantic import BaseSettings, validator
+from pydantic import field_validator
+from pydantic_settings import BaseSettings
 from functools import lru_cache
 
 
@@ -64,29 +65,33 @@ class Settings(BaseSettings):
     enable_metrics: bool = True
     enable_health_checks: bool = True
     
-    @validator("allowed_origins", pre=True)
+    @field_validator("allowed_origins", mode="before")
+    @classmethod
     def parse_cors_origins(cls, v):
         if isinstance(v, str):
             return [origin.strip() for origin in v.split(",") if origin.strip()]
         return v
     
-    @validator("environment")
+    @field_validator("environment")
+    @classmethod
     def validate_environment(cls, v):
         allowed_envs = ["development", "staging", "production"]
         if v not in allowed_envs:
             raise ValueError(f"Environment must be one of: {allowed_envs}")
         return v
     
-    @validator("debug")
-    def validate_debug(cls, v, values):
-        if values.get("environment") == "production" and v:
+    @field_validator("debug")
+    @classmethod
+    def validate_debug(cls, v, info):
+        if info.data.get("environment") == "production" and v:
             return False  # Force debug=False in production
         return v
     
-    class Config:
-        env_file = ".env"
-        env_file_encoding = "utf-8"
-        case_sensitive = False
+    model_config = {
+        "env_file": ".env",
+        "env_file_encoding": "utf-8",
+        "case_sensitive": False
+    }
 
 
 @lru_cache()
