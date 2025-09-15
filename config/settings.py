@@ -68,9 +68,24 @@ class Settings(BaseSettings):
     @field_validator("allowed_origins", mode="before")
     @classmethod
     def parse_cors_origins(cls, v):
+        if v is None or v == "":
+            return []
         if isinstance(v, str):
             return [origin.strip() for origin in v.split(",") if origin.strip()]
-        return v
+        if isinstance(v, list):
+            return v
+        return []
+    
+    @field_validator("allowed_image_types", mode="before")
+    @classmethod
+    def parse_image_types(cls, v):
+        if v is None or v == "":
+            return ["image/jpeg", "image/png", "image/webp"]
+        if isinstance(v, str):
+            return [img_type.strip() for img_type in v.split(",") if img_type.strip()]
+        if isinstance(v, list):
+            return v
+        return ["image/jpeg", "image/png", "image/webp"]
     
     @field_validator("environment")
     @classmethod
