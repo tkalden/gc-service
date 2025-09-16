@@ -83,6 +83,53 @@ async def virtual_try_on(
         raise HTTPException(status_code=500, detail=str(e))
 
 
+@router.get("/{avatar_id}", response_model=AvatarResponse)
+async def get_avatar_by_id(avatar_id: str, current_user_id: str = Depends(get_current_user_id)):
+    """Get avatar by ID (must belong to current user)"""
+    try:
+        from app.services.database_service import DatabaseService
+        avatar = await DatabaseService.get_avatar_by_id(avatar_id)
+        
+        if not avatar:
+            raise HTTPException(status_code=404, detail="Avatar not found")
+        
+        # Ensure avatar belongs to current user
+        if avatar.user_id != current_user_id:
+            raise HTTPException(status_code=403, detail="Access denied")
+        
+        return AvatarResponse(
+            success=True,
+            data=avatar,
+            message="Avatar retrieved successfully"
+        )
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Error getting avatar by ID: {str(e)}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@router.get("/try-on/history")
+async def get_tryon_history(
+    limit: int = 20,
+    current_user_id: str = Depends(get_current_user_id)
+):
+    """Get user's virtual try-on history"""
+    try:
+        from app.services.database_service import DatabaseService
+        results = await DatabaseService.get_user_tryon_results(current_user_id, limit)
+        
+        return {
+            "success": True,
+            "data": results,
+            "count": len(results),
+            "message": f"Retrieved {len(results)} try-on results"
+        }
+    except Exception as e:
+        logger.error(f"Error getting try-on history: {str(e)}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+
 @router.get("/service/status")
 async def get_avatar_service_status():
     """Get avatar service status and capabilities"""

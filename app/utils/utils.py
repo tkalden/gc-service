@@ -1,40 +1,40 @@
+"""
+Basic utility functions for the Closet App
+AI-specific utilities are in ai_models/utils.py
+"""
+
 import os
-
-import cv2
-import numpy as np
+import base64
+from typing import Optional
 from PIL import Image
-import torch
+import io
 
 
-def gen_noise(shape):
-    noise = np.zeros(shape, dtype=np.uint8)
-    ### noise
-    noise = cv2.randn(noise, 0, 255)
-    noise = np.asarray(noise / 255, dtype=np.uint8)
-    noise = torch.tensor(noise, dtype=torch.float32)
-    return noise
+def image_to_base64(image: Image.Image, format: str = "JPEG") -> str:
+    """Convert PIL Image to base64 string"""
+    buffer = io.BytesIO()
+    image.save(buffer, format=format)
+    img_str = base64.b64encode(buffer.getvalue()).decode()
+    return img_str
 
 
-def save_images(img_tensors, img_names, save_dir):
-    for img_tensor, img_name in zip(img_tensors, img_names):
-        tensor = (img_tensor.clone()+1)*0.5 * 255
-        tensor = tensor.cpu().clamp(0,255)
-
-        try:
-            array = tensor.numpy().astype('uint8')
-        except:
-            array = tensor.detach().numpy().astype('uint8')
-
-        if array.shape[0] == 1:
-            array = array.squeeze(0)
-        elif array.shape[0] == 3:
-            array = array.swapaxes(0, 1).swapaxes(1, 2)
-
-        im = Image.fromarray(array)
-        im.save(os.path.join(save_dir, img_name), format='JPEG')
+def base64_to_image(base64_str: str) -> Image.Image:
+    """Convert base64 string to PIL Image"""
+    img_data = base64.b64decode(base64_str)
+    return Image.open(io.BytesIO(img_data))
 
 
-def load_checkpoint(model, checkpoint_path):
-    if not os.path.exists(checkpoint_path):
-        raise ValueError("'{}' is not a valid checkpoint path".format(checkpoint_path))
-    model.load_state_dict(torch.load(checkpoint_path))
+def ensure_directory_exists(directory: str) -> None:
+    """Ensure a directory exists, create if it doesn't"""
+    os.makedirs(directory, exist_ok=True)
+
+
+def get_file_extension(filename: str) -> str:
+    """Get file extension from filename"""
+    return os.path.splitext(filename)[1].lower()
+
+
+def is_valid_image_format(filename: str) -> bool:
+    """Check if file has a valid image format"""
+    valid_extensions = {'.jpg', '.jpeg', '.png', '.webp', '.bmp', '.gif'}
+    return get_file_extension(filename) in valid_extensions

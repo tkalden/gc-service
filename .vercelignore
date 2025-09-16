@@ -46,6 +46,9 @@ checkpoints/
 *.h5
 *.model
 
+# AI Models (exclude from deployment)
+ai_models/
+
 # Large files that shouldn't be deployed
 *.mp4
 *.avi

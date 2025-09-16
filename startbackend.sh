@@ -1,5 +1,5 @@
 #!/bin/bash
-cd ClosetApp/backend
+cd gc-service
 source venv/bin/activate
 pip install -r requirements.txt
-python run.py
+uvicorn app.main:app --reload --host 0.0.0.0 --port 8000

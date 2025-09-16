@@ -5,7 +5,6 @@ Uses MediaPipe for pose detection and body segmentation
 
 import os
 import uuid
-import cv2
 import numpy as np
 import base64
 from typing import Optional, Tuple, Dict, List
@@ -18,6 +17,15 @@ from concurrent.futures import ThreadPoolExecutor
 import time
 
 logger = logging.getLogger(__name__)
+
+# Try to import OpenCV, handle if not installed
+try:
+    import cv2
+    OPENCV_AVAILABLE = True
+    logger.info("OpenCV library loaded successfully")
+except ImportError:
+    OPENCV_AVAILABLE = False
+    logger.warning("OpenCV library not installed. Install with: pip install opencv-python")
 
 # Try to import MediaPipe, handle if not installed
 try:
@@ -63,7 +71,7 @@ class AvatarService:
     
     def is_available(self) -> bool:
         """Check if the avatar service is available"""
-        return MEDIAPIPE_AVAILABLE and self.pose_detector is not None
+        return OPENCV_AVAILABLE and MEDIAPIPE_AVAILABLE and self.pose_detector is not None
     
     async def process_avatar_image(self, image_data: bytes, user_id: str) -> Tuple[bool, Optional[Dict], Optional[str]]:
         """
@@ -119,6 +127,9 @@ class AvatarService:
             if len(image_data) == 0:
                 return False, None, None, None, "Empty image data received"
             
+            if not OPENCV_AVAILABLE:
+                return False, None, None, None, "OpenCV not available - cannot process image"
+                
             # Convert bytes to OpenCV image
             nparr = np.frombuffer(image_data, np.uint8)
             logger.info(f"Created numpy array of shape: {nparr.shape}")
@@ -387,21 +398,9 @@ class AvatarService:
             result_image = avatar_image.copy()
             
             if clothing_image:
-                # Use EXACT SwayamInSync implementation with their trained models
-                from viton_exact_models import exact_viton_models_service
-                
-                logger.info("🚀 Using EXACT SwayamInSync trained neural networks")
-                viton_result_base64 = exact_viton_models_service.create_virtual_tryon(
-                    result_image, clothing_image, category
-                )
-                
-                if viton_result_base64:
-                    # Return the ViTON result directly without additional processing
-                    logger.info("✅ EXACT SwayamInSync trained models successful - returning direct result")
-                    return viton_result_base64
-                else:
-                    logger.warning("EXACT SwayamInSync trained models failed, using basic overlay")
-                    result_image = self._simple_clothing_overlay(result_image, clothing_image, category)
+                # AI features disabled for deployment - using basic overlay
+                logger.info("AI features disabled - using basic clothing overlay")
+                result_image = self._simple_clothing_overlay(result_image, clothing_image, category)
             
             # Add subtle try-on indicator
             draw = ImageDraw.Draw(result_image)
@@ -500,6 +499,10 @@ class AvatarService:
     def _create_body_mask(self, avatar_image: Image.Image) -> Image.Image:
         """Create body segmentation mask using MediaPipe"""
         try:
+            if not OPENCV_AVAILABLE:
+                logger.warning("OpenCV not available - cannot create segmentation mask")
+                return None
+                
             if not self.selfie_segmentation:
                 logger.warning("Selfie segmentation not available")
                 return None
@@ -673,6 +676,10 @@ class AvatarService:
     def _apply_perspective_warp(self, clothing_image: Image.Image, region_points: list, target_size: tuple) -> Image.Image:
         """Apply perspective transformation to warp clothing to body region"""
         try:
+            if not OPENCV_AVAILABLE:
+                logger.warning("OpenCV not available - cannot apply perspective warp")
+                return clothing_image
+                
             # Convert PIL to OpenCV
             clothing_cv = cv2.cvtColor(np.array(clothing_image), cv2.COLOR_RGBA2BGRA)
             

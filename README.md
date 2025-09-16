@@ -1,56 +1,110 @@
-# GhogumCloset Backend - Virtual Try-On API
+# GC-Service - Closet App Backend
 
-A secure Python FastAPI backend for the GhogumCloset app, providing advanced virtual try-on capabilities with neural network-powered clothing simulation.
+A production-ready FastAPI backend for the Closet App with advanced virtual try-on capabilities, organized structure, and comprehensive security features.
 
-## Features
+## 🚀 Features
 
-- 🚀 **FastAPI** - Modern, fast web framework with async support
 - 🧠 **AI-Powered VTO** - SwayamInSync ViTON neural networks for realistic virtual try-on
 - 👤 **Avatar Processing** - MediaPipe pose estimation and body segmentation
 - 🗄️ **Supabase Integration** - Secure database and storage with RLS
 - 📸 **Advanced Image Processing** - Background removal, cloth segmentation, pose detection
-- 🔒 **Security First** - Environment-based configuration, no hardcoded secrets
+- 🔒 **Security First** - JWT authentication, rate limiting, input validation
 - 📚 **Auto Documentation** - Swagger UI included
 - 🌐 **CORS Support** - Ready for React Native app
 - ⚡ **High Performance** - Supports 1000+ concurrent users
+- 🏗️ **Organized Structure** - Clean, maintainable codebase
 
-## Setup
+## 🏗️ Project Structure
 
-### 1. Install Dependencies
+```
+gc-service/
+├── app/                          # Application code
+│   ├── api/                      # API endpoints
+│   │   └── v1/                   # API version 1
+│   │       ├── auth/             # Authentication endpoints
+│   │       ├── clothes/          # Clothing items endpoints
+│   │       ├── outfits/          # Outfits endpoints
+│   │       ├── avatar/           # Avatar endpoints
+│   │       ├── upload/           # File upload endpoints
+│   │       └── admin/            # Admin endpoints
+│   ├── core/                     # Core functionality
+│   │   ├── logging.py           # Logging configuration
+│   │   ├── security.py          # Security middleware
+│   │   └── exceptions.py        # Custom exceptions
+│   ├── models/                   # Pydantic models
+│   ├── services/                 # Business logic services
+│   ├── middleware/               # Custom middleware
+│   ├── utils/                    # Utility functions
+│   └── main.py                  # Application factory
+├── config/                       # Configuration management
+│   ├── settings.py              # Main settings
+│   └── environments/            # Environment-specific configs
+├── tests/                        # Test files
+├── scripts/                      # Deployment scripts
+├── docs/                         # Documentation
+├── logs/                         # Log files (created at runtime)
+├── requirements.txt              # Dependencies
+├── vercel.json                  # Vercel deployment config
+└── api/index.py                 # Vercel entry point
+```
+
+## 🚀 Quick Start
+
+### 1. Environment Setup
 
 ```bash
-cd backend
+# Copy environment template
+cp env.example .env
+
+# Edit .env with your actual values
+nano .env
+```
+
+### 2. Install Dependencies
+
+```bash
+# Create virtual environment
+python -m venv venv
+source venv/bin/activate  # On Windows: venv\Scripts\activate
+
+# Install dependencies
 pip install -r requirements.txt
 ```
 
-### 2. Environment Configuration
-
-**⚠️ SECURITY NOTICE: Never commit sensitive credentials to git!**
-
-Create a `.env` file in the backend directory:
+### 3. Run the Application
 
 ```bash
-# Copy the example file
-cp env.example .env
+# Development
+uvicorn app.main:app --reload --host 0.0.0.0 --port 8000
+
+# Or using npm scripts
+npm run dev
+npm run start
+
+# Or using the shell script
+./startbackend.sh
 ```
 
-Then edit `.env` with your actual values:
+The API will be available at:
+- **API**: http://localhost:8000
+- **Documentation**: http://localhost:8000/docs
+- **Health Check**: http://localhost:8000/health
 
-```env
-# Supabase Configuration (REQUIRED)
-SUPABASE_URL=https://your-project.supabase.co
-SUPABASE_SERVICE_KEY=your-service-role-key-here
+## 🔧 Configuration
 
-# Server Configuration
-HOST=0.0.0.0
-PORT=8000
-DEBUG=True
+### Environment Variables
 
-# CORS Configuration (comma-separated list)
-ALLOWED_ORIGINS=http://localhost:3000,http://localhost:8081,http://localhost:8082
-```
+| Variable               | Description                                  | Required | Default           |
+| ---------------------- | -------------------------------------------- | -------- | ----------------- |
+| `ENVIRONMENT`          | Environment (development/staging/production) | Yes      | development       |
+| `SUPABASE_URL`         | Supabase project URL                         | Yes      | -                 |
+| `SUPABASE_SERVICE_KEY` | Supabase service key                         | Yes      | -                 |
+| `SECRET_KEY`           | JWT secret key                               | Yes      | -                 |
+| `ALLOWED_ORIGINS`      | CORS allowed origins                         | No       | localhost origins |
+| `LOG_LEVEL`            | Logging level                                | No       | INFO              |
+| `RATE_LIMIT_REQUESTS`  | Rate limit per minute                        | No       | 100               |
 
-#### Getting Your Supabase Keys:
+### Getting Your Supabase Keys
 
 1. Go to [Supabase Dashboard](https://app.supabase.com)
 2. Select your project
@@ -59,7 +113,7 @@ ALLOWED_ORIGINS=http://localhost:3000,http://localhost:8081,http://localhost:808
    - **Project URL** → `SUPABASE_URL`
    - **Service role key** → `SUPABASE_SERVICE_KEY` (⚠️ Keep this secret!)
 
-#### Security Checklist:
+### Security Checklist
 
 - [ ] Never commit `.env` files to git
 - [ ] Use different keys for development/production
@@ -67,58 +121,62 @@ ALLOWED_ORIGINS=http://localhost:3000,http://localhost:8081,http://localhost:808
 - [ ] Use service role keys only on server-side
 - [ ] Enable Row Level Security (RLS) in Supabase
 
-### 3. Run the Server
+## 🔍 API Documentation
 
-```bash
-# Development mode
-python main.py
+### Interactive Documentation
 
-# Or using uvicorn directly
-uvicorn main:app --host 0.0.0.0 --port 8000 --reload
-```
+- **Swagger UI**: `/docs` (development only)
+- **ReDoc**: `/redoc` (development only)
+- **OpenAPI Schema**: `/openapi.json`
 
-The API will be available at:
-- **API**: http://localhost:8000
-- **Documentation**: http://localhost:8000/docs
-- **Health Check**: http://localhost:8000/health
+### API Endpoints
 
-## API Endpoints
+#### Authentication (`/api/v1/auth/`)
+- `POST /register` - User registration
+- `POST /login` - User login
+- `POST /logout` - User logout
+- `GET /me` - Get current user
+- `POST /reset-password` - Password reset
+- `POST /refresh` - Refresh token
 
-### Virtual Try-On (VTO)
+#### Clothing Items (`/api/v1/clothes/`)
+- `GET /` - Get all clothing items
+- `POST /` - Create clothing item
+- `GET /{id}` - Get specific item
+- `PUT /{id}` - Update item
+- `DELETE /{id}` - Delete item
+- `GET /category/{category}` - Get items by category
+- `GET /season/{season}` - Get items by season
 
-- `POST /api/avatar/upload` - Upload and process avatar image
-- `POST /api/avatar/virtual-tryon` - Generate virtual try-on result
-- `GET /api/avatar/{user_id}` - Get user's avatar data
-- `GET /api/tryon-results/{user_id}` - Get try-on history
+#### Outfits (`/api/v1/outfits/`)
+- `GET /` - Get user outfits (with filtering)
+- `POST /` - Create outfit
+- `POST /upload` - Create outfit with images
+- `POST /generate` - Generate outfit from clothing items
+- `GET /{id}` - Get specific outfit
+- `GET /{id}/details` - Get outfit with clothing items
+- `PUT /{id}` - Update outfit
+- `DELETE /{id}` - Delete outfit
+- `POST /filter` - Advanced outfit filtering
 
-### Authentication
+#### Avatar (`/api/v1/avatar/`)
+- `POST /upload` - Upload avatar
+- `GET /` - Get user avatar
+- `GET /{id}` - Get avatar by ID
+- `POST /try-on` - Virtual try-on
+- `GET /try-on/history` - Get try-on history
+- `GET /service/status` - Get service status
 
-- `POST /api/auth/register` - Register new user
-- `POST /api/auth/login` - User login
-- `POST /api/auth/logout` - User logout
-- `POST /api/auth/reset-password` - Password reset
+#### File Upload (`/api/v1/upload/`)
+- `POST /unified` - Upload images
+- `GET /images/{path}` - Serve images
 
-### Clothing Items
+#### Admin (`/api/v1/admin/`)
+- `POST /remove-background/url` - Remove background from URL
+- `POST /remove-background/base64` - Remove background from base64
+- `GET /remove-background/status` - Get background removal status
 
-- `GET /api/clothes` - Get all clothing items
-- `GET /api/clothes/{id}` - Get specific clothing item
-- `POST /api/clothes` - Create new clothing item
-- `PUT /api/clothes/{id}` - Update clothing item
-- `DELETE /api/clothes/{id}` - Delete clothing item
-
-### Image Upload
-
-- `POST /api/upload` - Upload single image
-- `POST /api/upload/multiple` - Upload multiple images
-- `POST /api/clothes/{id}/image` - Upload image for specific item
-
-### Utility
-
-- `GET /api/clothes/category/{category}` - Get items by category
-- `GET /api/clothes/season/{season}` - Get items by season
-- `GET /health` - Health check
-
-## Data Models
+## 📊 Data Models
 
 ### ClothingItem
 
@@ -153,13 +211,223 @@ The API will be available at:
 - `fall`
 - `winter`
 
-## Example Usage
+## 🛡️ Security Features
+
+### Implemented Security Measures
+
+1. **Authentication & Authorization**
+   - JWT-based authentication
+   - Role-based access control
+   - Token refresh mechanism
+
+2. **Input Validation**
+   - Pydantic model validation
+   - File type and size validation
+   - SQL injection prevention
+
+3. **Security Headers**
+   - X-Content-Type-Options
+   - X-Frame-Options
+   - X-XSS-Protection
+   - HSTS (production)
+
+4. **Rate Limiting**
+   - Per-IP rate limiting
+   - Configurable limits
+   - Automatic cleanup
+
+5. **Error Handling**
+   - Structured error responses
+   - No sensitive data exposure
+   - Comprehensive logging
+
+## 📈 Performance Optimization
+
+### Implemented Optimizations
+
+1. **Database**
+   - Connection pooling
+   - Query optimization
+   - Indexed queries
+
+2. **Caching**
+   - Response caching
+   - Database query caching
+   - Static file caching
+
+3. **File Handling**
+   - Streaming uploads
+   - Image optimization
+   - CDN integration
+
+4. **API Design**
+   - Pagination
+   - Field selection
+   - Compression
+
+## 🚀 Deployment
+
+### Vercel Deployment
+
+#### Prerequisites
+1. **Vercel Account**: Sign up at [vercel.com](https://vercel.com)
+2. **Vercel CLI**: Install globally with `npm install -g vercel`
+3. **Environment Variables**: Have your Supabase credentials ready
+
+#### Quick Deployment
+
+**Option 1: Using the Deployment Script**
+```bash
+# Make the script executable
+chmod +x deploy-vercel.sh
+
+# Run the deployment script
+./deploy-vercel.sh
+```
+
+**Option 2: Manual Deployment**
+```bash
+# Install Vercel CLI if not already installed
+npm install -g vercel
+
+# Login to Vercel
+vercel login
+
+# Deploy to Vercel
+vercel --prod
+```
+
+#### Environment Variables in Vercel
+
+Set these in your Vercel dashboard:
+
+**Required Variables:**
+- `SUPABASE_URL`: Your Supabase project URL
+- `SUPABASE_SERVICE_KEY`: Your Supabase service role key
+- `SECRET_KEY`: JWT secret key
+- `ENVIRONMENT`: Set to "production"
+
+**Optional Variables:**
+- `BACKEND_URL`: Your Vercel deployment URL (auto-generated)
+- `ALLOWED_ORIGINS`: Comma-separated list of allowed origins
+- `DEBUG`: Set to "false" for production
+
+**Setting Environment Variables:**
+
+Via Vercel Dashboard:
+1. Go to your project in Vercel dashboard
+2. Navigate to Settings → Environment Variables
+3. Add each variable with appropriate values
+
+Via Vercel CLI:
+```bash
+vercel env add SUPABASE_URL
+vercel env add SUPABASE_SERVICE_KEY
+vercel env add ALLOWED_ORIGINS
+```
+
+#### Post-Deployment Steps
+
+1. **Update Frontend Configuration**: Update your React Native app's API URL to point to your Vercel deployment
+2. **Test Endpoints**: Verify all API endpoints work correctly
+3. **Monitor Logs**: Check Vercel function logs for any issues
+
+#### Troubleshooting
+
+**Common Issues:**
+1. **Function Timeout**: Increase timeout in vercel.json if needed
+2. **Memory Issues**: Some ML operations might need more memory
+3. **Cold Starts**: First request might be slower due to serverless nature
+
+**Performance Optimization:**
+1. **Keep Functions Light**: Avoid heavy imports in global scope
+2. **Use Connection Pooling**: For database connections
+3. **Cache Results**: Implement caching for expensive operations
+
+#### Cost Considerations
+
+- **Free Tier**: 100GB-hours of serverless function execution
+- **Pro Tier**: $20/month for additional resources
+- **Enterprise**: Custom pricing for high-volume usage
+
+#### Monitoring
+
+- **Vercel Dashboard**: Monitor function performance and errors
+- **Logs**: Check function logs for debugging
+- **Analytics**: Use Vercel Analytics for usage insights
+
+### Docker Deployment (Optional)
+
+```dockerfile
+FROM python:3.9-slim
+
+WORKDIR /app
+COPY requirements.txt .
+RUN pip install -r requirements.txt
+
+COPY . .
+EXPOSE 8000
+
+CMD ["uvicorn", "app.main:app", "--host", "0.0.0.0", "--port", "8000"]
+```
+
+### Production Security Checklist
+
+- [ ] Use production Supabase instance with separate credentials
+- [ ] Set `DEBUG=False` in production
+- [ ] Use secrets management (AWS Secrets Manager, etc.)
+- [ ] Enable HTTPS only
+- [ ] Restrict CORS origins to your domain
+- [ ] Set up proper monitoring and logging
+- [ ] Use environment-specific configuration
+- [ ] Regularly update dependencies for security patches
+
+## 🧪 Testing
+
+```bash
+# Install test dependencies
+pip install pytest pytest-asyncio
+
+# Run tests
+pytest tests/
+
+# Run with coverage
+pytest --cov=app tests/
+```
+
+## 🛠️ Development
+
+### Code Quality
+
+```bash
+# Format code
+black app/ tests/
+
+# Sort imports
+isort app/ tests/
+
+# Lint code
+flake8 app/ tests/
+```
+
+### Pre-commit Hooks
+
+```bash
+# Install pre-commit
+pip install pre-commit
+
+# Install hooks
+pre-commit install
+```
+
+## 📝 Example Usage
 
 ### Create a clothing item
 
 ```bash
-curl -X POST "http://localhost:8000/api/clothes" \
+curl -X POST "http://localhost:8000/api/v1/clothes" \
   -H "Content-Type: application/json" \
+  -H "Authorization: Bearer YOUR_TOKEN" \
   -d '{
     "name": "Blue Jeans",
     "category": "bottoms",
@@ -171,103 +439,32 @@ curl -X POST "http://localhost:8000/api/clothes" \
 ### Upload an image
 
 ```bash
-curl -X POST "http://localhost:8000/api/upload" \
+curl -X POST "http://localhost:8000/api/v1/upload/unified" \
+  -H "Authorization: Bearer YOUR_TOKEN" \
   -F "file=@image.jpg" \
-  -F "folder=user-clothes"
+  -F "bucket_name=clothing-image"
 ```
 
 ### Get all clothes
 
 ```bash
-curl "http://localhost:8000/api/clothes"
+curl "http://localhost:8000/api/v1/clothes" \
+  -H "Authorization: Bearer YOUR_TOKEN"
 ```
 
-## Development
+## 🔄 Integration with React Native App
 
-### Project Structure
-
-```
-backend/
-├── main.py          # FastAPI application
-├── models.py        # Pydantic models
-├── database.py      # Database operations
-├── storage.py       # Storage operations
-├── config.py        # Configuration
-├── requirements.txt # Dependencies
-└── README.md        # This file
-```
-
-### Adding New Features
-
-1. **Models**: Add new Pydantic models in `models.py`
-2. **Database**: Add database operations in `database.py`
-3. **Endpoints**: Add new routes in `main.py`
-4. **Storage**: Add storage operations in `storage.py`
-
-### Testing
-
-The API includes automatic OpenAPI documentation at `/docs` where you can test all endpoints interactively.
-
-## Deployment
-
-### Local Development
-
-```bash
-python main.py
-```
-
-### Production
-
-For production deployment, ensure security best practices:
-
-```bash
-# Set production environment variables
-export DEBUG=False
-export SUPABASE_URL=https://your-prod-project.supabase.co
-export SUPABASE_SERVICE_KEY=your-prod-service-key
-
-# Run with multiple workers
-uvicorn main:app --host 0.0.0.0 --port 8000 --workers 4
-```
-
-#### Production Security Checklist:
-
-- [ ] Use production Supabase instance with separate credentials
-- [ ] Set `DEBUG=False` in production
-- [ ] Use secrets management (AWS Secrets Manager, etc.)
-- [ ] Enable HTTPS only
-- [ ] Restrict CORS origins to your domain
-- [ ] Set up proper monitoring and logging
-- [ ] Use environment-specific configuration
-- [ ] Regularly update dependencies for security patches
-
-### Docker (Optional)
-
-```dockerfile
-FROM python:3.11-slim
-
-WORKDIR /app
-COPY requirements.txt .
-RUN pip install -r requirements.txt
-
-COPY . .
-EXPOSE 8000
-
-CMD ["uvicorn", "main:app", "--host", "0.0.0.0", "--port", "8000"]
-```
-
-## Integration with React Native App
-
-The backend is designed to replace the direct Supabase client calls in your React Native app. Update your app to call these API endpoints instead of directly accessing Supabase.
+The backend is designed to replace direct Supabase client calls in your React Native app. Update your app to call these API endpoints instead of directly accessing Supabase.
 
 ### Example Integration
 
 ```javascript
 // Instead of direct Supabase calls
-const response = await fetch('http://localhost:8000/api/clothes', {
+const response = await fetch('http://localhost:8000/api/v1/clothes', {
   method: 'POST',
   headers: {
     'Content-Type': 'application/json',
+    'Authorization': `Bearer ${token}`
   },
   body: JSON.stringify({
     name: 'T-Shirt',
@@ -277,3 +474,49 @@ const response = await fetch('http://localhost:8000/api/clothes', {
   })
 });
 ```
+
+## 📊 Monitoring & Logging
+
+### Logging Configuration
+
+- **Structured Logging**: JSON format in production
+- **Log Levels**: DEBUG, INFO, WARNING, ERROR
+- **Log Rotation**: 10MB files, 5 backups
+- **Separate Error Logs**: Dedicated error.log file
+
+### Health Checks
+
+- **Basic Health**: `/health` endpoint
+- **Database Health**: Connection status
+- **Service Health**: External service status
+
+## 🤝 Contributing
+
+1. Fork the repository
+2. Create a feature branch
+3. Make your changes
+4. Add tests
+5. Submit a pull request
+
+## 📄 License
+
+This project is licensed under the MIT License.
+
+## 🆘 Support
+
+For support and questions:
+
+1. Check the documentation
+2. Review the logs
+3. Check the health endpoints
+4. Contact the development team
+
+## 🔄 Updates
+
+### Version 1.0.0
+- Initial production-ready release
+- Organized project structure
+- Comprehensive security features
+- Production deployment configurations
+- Monitoring and logging setup
+- Clean, maintainable codebase with no duplicate endpoints
