@@ -5,7 +5,7 @@ Database operations using Supabase
 from typing import List, Optional
 from supabase import create_client, Client
 from config.settings import get_settings
-from models import ClothingItem, ClothingItemCreate, ClothingItemUpdate, Avatar, AvatarCreate, TryOnResult, Outfit, OutfitCreate, OutfitUpdate
+from app.models.models import ClothingItem, ClothingItemCreate, ClothingItemUpdate, Avatar, AvatarCreate, TryOnResult, Outfit, OutfitCreate, OutfitUpdate
 import logging
 
 logger = logging.getLogger(__name__)

@@ -6,7 +6,7 @@ from fastapi import APIRouter, Depends, HTTPException
 from app.core.logging import get_logger
 from app.core.exceptions import ServiceUnavailableException
 from app.services.background_removal import background_removal_service
-from app.middleware.auth import get_current_user_id
+from app.middleware.middleware import get_current_user_id
 
 logger = get_logger(__name__)
 router = APIRouter()

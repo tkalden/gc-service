@@ -7,11 +7,11 @@ from typing import List, Optional
 from app.core.logging import get_logger
 from app.core.exceptions import DatabaseException
 from app.services.outfit_service import outfit_service
-from app.models.outfit import (
+from app.models.models import (
     OutfitCreate, OutfitUpdate, OutfitResponse, 
     OutfitsResponse, OutfitFilterRequest, DeleteResponse
 )
-from app.middleware.auth import get_current_user_id
+from app.middleware.middleware import get_current_user_id
 
 logger = get_logger(__name__)
 router = APIRouter()

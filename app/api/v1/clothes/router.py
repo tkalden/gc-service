@@ -6,11 +6,11 @@ from fastapi import APIRouter, Depends, HTTPException
 from app.core.logging import get_logger
 from app.core.exceptions import DatabaseException
 from app.services.database_service import DatabaseService
-from app.models.clothing import (
+from app.models.models import (
     ClothingItemCreate, ClothingItemUpdate, ClothingItemResponse,
     ClothingItemsResponse, DeleteResponse
 )
-from app.middleware.auth import get_current_user_id
+from app.middleware.middleware import get_current_user_id
 
 logger = get_logger(__name__)
 router = APIRouter()

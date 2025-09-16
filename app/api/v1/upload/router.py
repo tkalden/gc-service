@@ -7,8 +7,8 @@ from typing import Optional
 from app.core.logging import get_logger
 from app.core.exceptions import ValidationException, StorageException
 from app.services.storage_service import StorageService
-from app.models.upload import ImageUploadResponse
-from app.middleware.auth import get_current_user_id
+from app.models.models import ImageUploadResponse
+from app.middleware.middleware import get_current_user_id
 from config.settings import get_settings
 
 logger = get_logger(__name__)

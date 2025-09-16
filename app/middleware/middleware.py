@@ -6,7 +6,7 @@ from fastapi import HTTPException, Depends, status
 from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
 from typing import Optional, Dict, Any
 import logging
-from auth import AuthService
+from app.services.auth_service import AuthService
 
 logger = logging.getLogger(__name__)
 

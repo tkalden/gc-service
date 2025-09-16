@@ -6,8 +6,8 @@ from fastapi import APIRouter, Depends, HTTPException, UploadFile, File
 from app.core.logging import get_logger
 from app.core.exceptions import ServiceUnavailableException
 from app.services.avatar_service import avatar_service
-from app.models.avatar import AvatarResponse, TryOnRequest
-from app.middleware.auth import get_current_user_id
+from app.models.models import AvatarResponse, TryOnRequest
+from app.middleware.middleware import get_current_user_id
 
 logger = get_logger(__name__)
 router = APIRouter()
