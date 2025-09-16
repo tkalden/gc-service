@@ -12,9 +12,9 @@ from fastapi import UploadFile, HTTPException
 from PIL import Image, ImageDraw, ImageFont
 import io
 
-from database import DatabaseService
-from storage import StorageService
-from models import Outfit, OutfitCreate, OutfitUpdate
+from app.services.database_service import DatabaseService
+from app.services.storage_service import StorageService
+from app.models.models import Outfit, OutfitCreate, OutfitUpdate
 
 logger = logging.getLogger(__name__)
 

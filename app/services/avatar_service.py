@@ -332,7 +332,7 @@ class AvatarService:
             # In a real implementation, this would use advanced AI for clothing overlay
             
             # Download avatar image from storage
-            from storage import StorageService
+            from app.services.storage_service import StorageService
             avatar_url = StorageService.get_image_url(avatar_path)
             
             # Create actual virtual try-on by overlaying clothing on the avatar
@@ -357,7 +357,7 @@ class AvatarService:
             import requests
             from PIL import Image, ImageDraw, ImageFont
             import io
-            from storage import StorageService
+            from app.services.storage_service import StorageService
             
             # Download avatar image
             response = requests.get(avatar_url)
