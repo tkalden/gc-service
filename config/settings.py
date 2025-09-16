@@ -3,10 +3,11 @@ Application settings and configuration management
 """
 
 import os
+from functools import lru_cache
 from typing import List, Optional
+
 from pydantic import field_validator
 from pydantic_settings import BaseSettings
-from functools import lru_cache
 
 
 class Settings(BaseSettings):
@@ -60,6 +61,13 @@ class Settings(BaseSettings):
     # Monitoring
     enable_metrics: bool = True
     enable_health_checks: bool = True
+    
+    @field_validator("supabase_url", "supabase_service_key", "supabase_anon_key", mode="after")
+    @classmethod
+    def strip_whitespace(cls, v):
+        if v is None:
+            return v
+        return v.strip() if isinstance(v, str) else v
     
     @field_validator("allowed_origins", mode="after")
     @classmethod

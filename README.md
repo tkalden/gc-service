@@ -34,8 +34,7 @@ gc-service/
 │   ├── models/                   # Pydantic models
 │   ├── services/                 # Business logic services
 │   ├── middleware/               # Custom middleware
-│   ├── utils/                    # Utility functions
-│   └── main.py                  # Application factory
+│   └── utils/                    # Utility functions
 ├── config/                       # Configuration management
 │   ├── settings.py              # Main settings
 │   └── environments/            # Environment-specific configs
@@ -45,6 +44,7 @@ gc-service/
 ├── logs/                         # Log files (created at runtime)
 ├── requirements.txt              # Dependencies
 ├── vercel.json                  # Vercel deployment config
+├── main.py                      # FastAPI application
 └── api/index.py                 # Vercel entry point
 ```
 
@@ -75,7 +75,7 @@ pip install -r requirements.txt
 
 ```bash
 # Development
-uvicorn app.main:app --reload --host 0.0.0.0 --port 8000
+uvicorn main:app --reload --host 0.0.0.0 --port 8000
 
 # Or using npm scripts
 npm run dev
