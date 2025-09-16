@@ -1,31 +1,36 @@
 """
-Vercel serverless function entry point
+Vercel serverless function entry point for FastAPI app
 """
 
-from http.server import BaseHTTPRequestHandler
-import json
+from fastapi import FastAPI
+from fastapi.middleware.cors import CORSMiddleware
 
-class handler(BaseHTTPRequestHandler):
-    def do_GET(self):
-        self.send_response(200)
-        self.send_header('Content-type', 'application/json')
-        self.send_header('Access-Control-Allow-Origin', '*')
-        self.send_header('Access-Control-Allow-Methods', 'GET, POST, PUT, DELETE, OPTIONS')
-        self.send_header('Access-Control-Allow-Headers', 'Content-Type, Authorization')
-        self.end_headers()
-        
-        if self.path == '/':
-            response = {"message": "Closet App API is running", "status": "ok"}
-        elif self.path == '/health':
-            response = {"status": "healthy", "service": "closet-app-api"}
-        else:
-            response = {"error": "Not found", "path": self.path}
-            
-        self.wfile.write(json.dumps(response).encode())
-    
-    def do_OPTIONS(self):
-        self.send_response(200)
-        self.send_header('Access-Control-Allow-Origin', '*')
-        self.send_header('Access-Control-Allow-Methods', 'GET, POST, PUT, DELETE, OPTIONS')
-        self.send_header('Access-Control-Allow-Headers', 'Content-Type, Authorization')
-        self.end_headers()
+# Create FastAPI app
+app = FastAPI(
+    title="Closet App API",
+    description="Backend API for the Closet App",
+    version="1.0.0",
+    debug=False,
+    docs_url=None,
+    redoc_url=None,
+)
+
+# Add CORS middleware
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["*"],
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
+
+@app.get("/")
+async def root():
+    return {"message": "Closet App API is running", "status": "ok"}
+
+@app.get("/health")
+async def health():
+    return {"status": "healthy", "service": "closet-app-api"}
+
+# Export for Vercel
+handler = app
