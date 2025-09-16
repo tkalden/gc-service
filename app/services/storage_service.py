@@ -2,13 +2,15 @@
 Storage operations for handling image uploads
 """
 
-import uuid
-import aiofiles
-from typing import Optional, Tuple
-from fastapi import UploadFile
-from supabase import create_client, Client
-from config.settings import get_settings
 import logging
+import uuid
+from typing import Optional, Tuple
+
+import aiofiles
+from fastapi import UploadFile
+from supabase import Client, create_client
+
+from config.settings import get_settings
 
 logger = logging.getLogger(__name__)
 
@@ -317,5 +319,6 @@ class StorageService:
         else:
             # Fallback: assume it's a clothing image if no bucket prefix
             logger.warning(f"No bucket prefix found in path: {image_path}, defaulting to clothing-image")
-            return settings.storage_bucket   
+            return settings.storage_bucket
+    
     

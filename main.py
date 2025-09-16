@@ -6,11 +6,11 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.middleware.trustedhost import TrustedHostMiddleware
 
-from config.settings import get_settings
+from app.api.v1.router import api_router
+from app.core.exceptions import get_exception_handlers
 from app.core.logging import get_logger
 from app.core.security import get_security_middleware
-from app.core.exceptions import get_exception_handlers
-from app.api.v1.router import api_router
+from config.settings import get_settings
 
 logger = get_logger(__name__)
 
@@ -82,6 +82,9 @@ async def root():
             },
             "upload": {
                 "image": "POST /api/v1/upload"
+            },
+            "images": {
+                "serve": "GET /api/v1/images/{path}"
             },
             "avatar": {
                 "endpoints": "GET /api/v1/avatar/*"
