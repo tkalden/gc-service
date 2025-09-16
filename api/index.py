@@ -71,7 +71,7 @@ class VercelHandler(BaseHTTPRequestHandler):
     
     async def _run_fastapi(self, scope, message):
         """Run FastAPI app and get response"""
-        response_data = {}
+        response_data = {"status": 200, "headers": [], "body": b""}
         
         async def receive():
             return message
@@ -81,7 +81,10 @@ class VercelHandler(BaseHTTPRequestHandler):
                 response_data["status"] = message["status"]
                 response_data["headers"] = message["headers"]
             elif message["type"] == "http.response.body":
-                response_data["body"] = message.get("body", b"")
+                # Accumulate body chunks
+                body_chunk = message.get("body", b"")
+                if body_chunk:
+                    response_data["body"] += body_chunk
         
         await app(scope, receive, send)
         return response_data
@@ -106,9 +109,8 @@ class VercelHandler(BaseHTTPRequestHandler):
         
         self.end_headers()
         
-        # Send body
-        if body:
-            self.wfile.write(body)
+        # Send body (always send, even if empty)
+        self.wfile.write(body)
     
     def _send_error_response(self, error_message):
         """Send error response"""
