@@ -148,6 +148,9 @@ class StorageService:
             logger.error(SUPABASE_CLIENT_NOT_INITIALIZED)
             return False
         
+        # Clean the image path by stripping whitespace and newlines
+        image_path = image_path.strip()
+        
         bucket = StorageService._determine_bucket_from_path(image_path)
         
         # Remove bucket name from path if it's included
@@ -191,6 +194,9 @@ class StorageService:
             logger.error(SUPABASE_CLIENT_NOT_INITIALIZED)
             return ""
         
+        # Clean the image path by stripping whitespace and newlines
+        image_path = image_path.strip()
+        
         bucket = StorageService._determine_bucket_from_path(image_path)
             
         try:
@@ -232,6 +238,9 @@ class StorageService:
         if not supabase:
             logger.error(SUPABASE_CLIENT_NOT_INITIALIZED)
             return b"", ""
+        
+        # Clean the image path by stripping whitespace and newlines
+        image_path = image_path.strip()
         
         # Determine bucket and actual path
         bucket = None
