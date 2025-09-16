@@ -2,6 +2,5 @@
 Closet App Backend Application
 """
 
-from .main import create_app
-
-__all__ = ["create_app"]
+# No longer importing from .main since we moved it to root
+__all__ = []
