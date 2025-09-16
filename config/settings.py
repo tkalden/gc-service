@@ -116,6 +116,14 @@ class Settings(BaseSettings):
             return False  # Force debug=False in production
         return v
     
+    @field_validator('*', mode='before')
+    @classmethod
+    def strip_strings(cls, v):
+        """Strip whitespace from all string fields"""
+        if isinstance(v, str):
+            return v.strip()
+        return v
+    
     model_config = {
         "env_file": ".env",
         "env_file_encoding": "utf-8",
