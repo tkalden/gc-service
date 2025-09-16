@@ -4,32 +4,33 @@ Vercel serverless function entry point for FastAPI app
 
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
-from config.settings import get_settings
-from app.api.v1.router import api_router
 
-# Create a simplified app for Vercel
-settings = get_settings()
-
+# Create a minimal app for Vercel without importing our complex modules
 app = FastAPI(
-    title=settings.app_name,
-    description=settings.app_description,
-    version=settings.app_version,
-    debug=False,  # Always False for production
-    docs_url=None,  # Disable docs in production
+    title="Closet App API",
+    description="Backend API for the Closet App",
+    version="1.0.0",
+    debug=False,
+    docs_url=None,
     redoc_url=None,
 )
 
-# Add CORS middleware
+# Add CORS middleware with basic settings
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=settings.allowed_origins_list,
+    allow_origins=["*"],  # Allow all origins for now
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
 )
 
-# Include API router
-app.include_router(api_router, prefix=settings.api_v1_prefix)
+@app.get("/")
+async def root():
+    return {"message": "Closet App API is running", "status": "ok"}
+
+@app.get("/health")
+async def health():
+    return {"status": "healthy", "service": "closet-app-api"}
 
 # Export for Vercel
 handler = app
