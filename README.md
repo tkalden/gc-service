@@ -48,6 +48,9 @@ gc-service/
 └── api/index.py                 # Vercel entry point
 ```
 
+
+For detailed documentation, diagrams, and guides, please visit the [**Documentation Hub**](docs/README.md).
+
 ## 🚀 Quick Start
 
 ### 1. Environment Setup
@@ -350,6 +353,7 @@ vercel env add ALLOWED_ORIGINS
 1. **Function Timeout**: Increase timeout in vercel.json if needed
 2. **Memory Issues**: Some ML operations might need more memory
 3. **Cold Starts**: First request might be slower due to serverless nature
+4. **Connection Errors**: If you see `[Errno 8] nodename nor servname provided`, verify your `SUPABASE_URL` in `.env`. It must be the valid project URL (e.g., `https://your-project.supabase.co`).
 
 **Performance Optimization:**
 1. **Keep Functions Light**: Avoid heavy imports in global scope
@@ -431,6 +435,21 @@ pip install pre-commit
 # Install hooks
 pre-commit install
 ```
+
+
+## 🤖 Development with Cursor & MCP
+
+This project is configured for **Model Context Protocol (MCP)**, allowing AI assistants (like Cursor) to directly interact with your database.
+
+### Supabase MCP Setup
+
+1. The project includes a pre-configured `.cursor/mcp.json` file.
+2. Ensure your `.env` file has valid `SUPABASE_URL` and `SUPABASE_SERVICE_KEY`.
+3. Reload your editor window to activate the MCP server.
+4. You can now ask Cursor to:
+   - "Show me the schema of the outfits table"
+   - "Check the last 5 registered users"
+   - "Debug why the login failed for user X"
 
 ## 📝 Example Usage
 
