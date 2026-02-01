@@ -9,6 +9,7 @@ from app.api.v1.auth.router import router as auth_router
 from app.api.v1.avatar.router import router as avatar_router
 from app.api.v1.clothes.router import router as clothes_router
 from app.api.v1.images.router import router as images_router
+from app.api.v1.optimized.router import router as optimized_router
 from app.api.v1.outfits.router import router as outfits_router
 from app.api.v1.upload.router import router as upload_router
 
@@ -22,3 +23,4 @@ api_router.include_router(avatar_router, prefix="/avatar", tags=["Avatar"])
 api_router.include_router(upload_router, prefix="/upload", tags=["File Upload"])
 api_router.include_router(images_router, prefix="/images", tags=["Image Serving"])
 api_router.include_router(admin_router, prefix="/admin", tags=["Admin"])
+api_router.include_router(optimized_router, prefix="/optimized", tags=["Optimized"])

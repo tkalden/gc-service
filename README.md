@@ -4,7 +4,7 @@ A production-ready FastAPI backend for the Closet App with advanced virtual try-
 
 ## 🚀 Features
 
-- 🧠 **AI-Powered VTO** - SwayamInSync ViTON neural networks for realistic virtual try-on
+- 🎨 **AI-Powered Virtual Try-On** - Replicate API integration with IDM-VTON for realistic results
 - 👤 **Avatar Processing** - MediaPipe pose estimation and body segmentation
 - 🗄️ **Supabase Integration** - Secure database and storage with RLS
 - 📸 **Advanced Image Processing** - Background removal, cloth segmentation, pose detection
@@ -74,12 +74,7 @@ pip install -r requirements.txt
 ### 3. Run the Application
 
 ```bash
-# Development
-uvicorn main:app --reload --host 0.0.0.0 --port 8000
 
-# Or using npm scripts
-npm run dev
-npm run start
 
 # Or using the shell script
 ./startbackend.sh
@@ -94,15 +89,19 @@ The API will be available at:
 
 ### Environment Variables
 
-| Variable               | Description                                  | Required | Default           |
-| ---------------------- | -------------------------------------------- | -------- | ----------------- |
-| `ENVIRONMENT`          | Environment (development/staging/production) | Yes      | development       |
-| `SUPABASE_URL`         | Supabase project URL                         | Yes      | -                 |
-| `SUPABASE_SERVICE_KEY` | Supabase service key                         | Yes      | -                 |
-| `SECRET_KEY`           | JWT secret key                               | Yes      | -                 |
-| `ALLOWED_ORIGINS`      | CORS allowed origins                         | No       | localhost origins |
-| `LOG_LEVEL`            | Logging level                                | No       | INFO              |
-| `RATE_LIMIT_REQUESTS`  | Rate limit per minute                        | No       | 100               |
+| Variable                 | Description                                  | Required | Default           |
+| ------------------------ | -------------------------------------------- | -------- | ----------------- |
+| `ENVIRONMENT`            | Environment (development/staging/production) | Yes      | development       |
+| `SUPABASE_URL`           | Supabase project URL                         | Yes      | -                 |
+| `SUPABASE_SERVICE_KEY`   | Supabase service key                         | Yes      | -                 |
+| `SECRET_KEY`             | JWT secret key                               | Yes      | -                 |
+| `REPLICATE_API_TOKEN`    | Replicate API token for virtual try-on       | No*      | -                 |
+| `REPLICATE_TRYON_MODEL`  | Replicate model version                      | No       | IDM-VTON default  |
+| `ALLOWED_ORIGINS`        | CORS allowed origins                         | No       | localhost origins |
+| `LOG_LEVEL`              | Logging level                                | No       | INFO              |
+| `RATE_LIMIT_REQUESTS`    | Rate limit per minute                        | No       | 100               |
+
+*Required for virtual try-on functionality
 
 ### Getting Your Supabase Keys
 
@@ -112,6 +111,17 @@ The API will be available at:
 4. Copy:
    - **Project URL** → `SUPABASE_URL`
    - **Service role key** → `SUPABASE_SERVICE_KEY` (⚠️ Keep this secret!)
+
+### Getting Your Replicate API Token
+
+1. Sign up at [Replicate](https://replicate.com)
+2. Go to your [Account Settings](https://replicate.com/account)
+3. Copy your API token
+4. Add to `.env`: `REPLICATE_API_TOKEN=your-token-here`
+
+**Note**: Virtual try-on will fall back to basic overlay if Replicate is not configured.
+
+For detailed Replicate integration documentation, see [docs/REPLICATE_INTEGRATION.md](docs/REPLICATE_INTEGRATION.md)
 
 ### Security Checklist
 
@@ -175,6 +185,8 @@ The API will be available at:
 - `POST /remove-background/url` - Remove background from URL
 - `POST /remove-background/base64` - Remove background from base64
 - `GET /remove-background/status` - Get background removal status
+- `POST /crop-image/url` - Crop cloth image from URL
+- `POST /crop-image/base64` - Crop cloth image from base64
 
 ## 📊 Data Models
 

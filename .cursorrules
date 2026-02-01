@@ -1,38 +1,7 @@
----
-description:
-globs:
-alwaysApply: true
----
 # Cursor Rules for GC-Service (Python/FastAPI Backend)
 
-## ⚠️ CRITICAL: Documentation Creation Policy (HIGH PRIORITY)
-
-### NEVER CREATE DOCUMENTATION FILES WITHOUT EXPLICIT PERMISSION
-
-**MANDATORY RULE:** Before creating ANY documentation file (.md, .txt, .rst, etc.), you MUST:
-1. **ASK THE USER FIRST** - Explicitly request permission
-2. **WAIT FOR CONFIRMATION** - Do not proceed until user approves
-3. **EXPLAIN WHY** - If you think documentation is needed, explain the reason and ask
-
-**EXCEPTIONS (Only these cases don't require asking):**
-- User explicitly requests: "create documentation", "write docs", "document this"
-- Code comments, docstrings, and inline documentation (always allowed)
-- OpenAPI/Swagger auto-generated documentation (automatic)
-
-**What counts as documentation files:**
-- Any `.md` file (README, guides, tutorials, etc.)
-- Any `.txt` documentation files
-- Architecture diagrams (unless explicitly requested)
-- User guides, setup instructions, etc.
-- Any file primarily for documentation purposes
-
-**What does NOT count (always allowed):**
-- Code comments and docstrings
-- Type hints and inline documentation
-- Configuration files (even if they contain comments)
-- Code files with documentation strings
-
-**If unsure, ALWAYS ASK FIRST. Never assume documentation is needed.**
+## Project Overview
+This is a FastAPI backend service for a closet management app with Supabase integration, image processing, and background removal capabilities.
 
 ## Code Standards & Best Practices
 
@@ -101,30 +70,17 @@ class ModelName(BaseModel):
 
 ## Documentation Rules
 
-### ⚠️ STRICT POLICY: NO AUTOMATIC DOCUMENTATION CREATION
+### DO NOT CREATE MARKDOWN DOCUMENTATION UNLESS:
+- Explicitly requested by the user
+- Required for API documentation (OpenAPI/Swagger)
+- Creating README files for deployment instructions
+- Documenting complex algorithms or business logic
 
-**CRITICAL:** You MUST ask the user before creating ANY documentation file. This is a high-priority rule.
-
-**Process when documentation might be helpful:**
-1. Recognize that documentation could be useful
-2. **STOP** - Do not create any files
-3. **ASK** - Say something like: "Would you like me to create a [type] documentation file for this? I can create [filename] to document [purpose]."
-4. **WAIT** - Wait for explicit user confirmation
-5. **ONLY THEN** - Create the file if user approves
-
-**What to do instead of creating docs:**
+### Instead of creating .md files:
 - Use comprehensive docstrings in code
 - Add inline comments for complex logic
 - Use type hints for self-documenting code
 - Create clear variable and function names
-- Explain in your response (not in a file)
-
-### ANSWER RULE
-- Don't write new function when there is existing one (e.g., don't do simple version, then different variation of this method when fixing issues; always use the same method till you get it working)
-- Don't generate todo list after answering the question
-- Don't write what you have achieved unless it is a complicated solution which helps me to understand the solution
-- Don't use emojis
-- **ALWAYS ASK before creating documentation files**
 
 ## Code Generation Guidelines
 
@@ -164,7 +120,6 @@ class ModelName(BaseModel):
 - Implement proper caching strategies
 - Optimize database queries
 - Use connection pooling for database connections
-- whenever new api is created make sure it can handle a concurrent request of atleast 1000 users at a time
 
 ## Dependencies
 - Keep dependencies minimal and up-to-date
@@ -189,3 +144,4 @@ class ModelName(BaseModel):
 - [ ] Has appropriate logging
 - [ ] Uses dependency injection
 - [ ] Follows RESTful conventions
+
