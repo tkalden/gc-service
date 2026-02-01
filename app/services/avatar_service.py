@@ -16,6 +16,10 @@ import asyncio
 from concurrent.futures import ThreadPoolExecutor
 import time
 
+# Import Replicate service for virtual try-on
+from app.services.replicate_service import replicate_service
+
+
 logger = logging.getLogger(__name__)
 
 # Try to import OpenCV, handle if not installed
@@ -47,27 +51,42 @@ class AvatarService:
         
         if MEDIAPIPE_AVAILABLE:
             try:
-                # Initialize MediaPipe Pose
+                # Initialize MediaPipe Pose with simpler configuration
                 mp_pose = mp.solutions.pose
                 self.pose_detector = mp_pose.Pose(
                     static_image_mode=True,
-                    model_complexity=2,  # Higher accuracy
-                    enable_segmentation=True,
-                    min_detection_confidence=0.6,  # Slightly lower threshold for better detection with higher res images
+                    model_complexity=1,  # Reduced from 2 to 1 for better compatibility
+                    enable_segmentation=False,  # Disable segmentation initially to avoid config issues
+                    min_detection_confidence=0.5,
                     min_tracking_confidence=0.5
                 )
                 
                 # Initialize MediaPipe Selfie Segmentation
                 mp_selfie_segmentation = mp.solutions.selfie_segmentation
                 self.selfie_segmentation = mp_selfie_segmentation.SelfieSegmentation(
-                    model_selection=1  # General model for full body
+                    model_selection=0  # Use model 0 (general) instead of 1 for better compatibility
                 )
                 
                 logger.info("MediaPipe models initialized successfully")
             except Exception as e:
                 logger.error(f"Failed to initialize MediaPipe models: {e}")
-                self.pose_detector = None
-                self.selfie_segmentation = None
+                logger.error(f"MediaPipe error details: {str(e)}")
+                # Try with minimal configuration
+                try:
+                    logger.info("Attempting MediaPipe initialization with minimal config...")
+                    self.pose_detector = mp_pose.Pose(
+                        static_image_mode=True,
+                        model_complexity=0,  # Simplest model
+                        min_detection_confidence=0.5
+                    )
+                    self.selfie_segmentation = mp_selfie_segmentation.SelfieSegmentation(
+                        model_selection=0
+                    )
+                    logger.info("MediaPipe initialized with minimal config")
+                except Exception as e2:
+                    logger.error(f"MediaPipe initialization failed even with minimal config: {e2}")
+                    self.pose_detector = None
+                    self.selfie_segmentation = None
     
     def is_available(self) -> bool:
         """Check if the avatar service is available"""
@@ -323,6 +342,67 @@ class AvatarService:
         except Exception as e:
             logger.error(f"Error validating avatar quality: {str(e)}")
             return False, "Error validating avatar quality", 0.0
+
+    async def perform_virtual_try_on(self, request, user_id: str) -> Dict:
+        """
+        Perform virtual try-on
+        """
+        try:
+            logger.info(f"🎯 [AvatarService] perform_virtual_try_on called: avatar_id={request.avatar_id}, clothing_id={request.clothing_item_id}, user_id={user_id}")
+            
+            from app.services.database_service import DatabaseService
+            
+            # 1. Get Avatar
+            logger.info(f"🎯 [AvatarService] Fetching avatar: {request.avatar_id}")
+            avatar = await DatabaseService.get_avatar_by_id(request.avatar_id)
+            if not avatar:
+                logger.error(f"❌ [AvatarService] Avatar not found: {request.avatar_id}")
+                raise HTTPException(status_code=404, detail="Avatar not found")
+            
+            logger.info(f"✅ [AvatarService] Avatar found: id={avatar.id}, image_path={avatar.original_image_path}")
+            
+            if avatar.user_id != user_id:
+                logger.error(f"❌ [AvatarService] Access denied: avatar.user_id={avatar.user_id} != user_id={user_id}")
+                raise HTTPException(status_code=403, detail="Access denied to avatar")
+                
+            # 2. Get Clothing Item
+            logger.info(f"🎯 [AvatarService] Fetching clothing item: {request.clothing_item_id}")
+            clothing_item = await DatabaseService.get_clothing_item_by_id(request.clothing_item_id)
+            if not clothing_item:
+                logger.error(f"❌ [AvatarService] Clothing item not found: {request.clothing_item_id}")
+                raise HTTPException(status_code=404, detail="Clothing item not found")
+            
+            logger.info(f"✅ [AvatarService] Clothing item found: id={clothing_item.id}, name={clothing_item.name}, category={clothing_item.category}, image_path={clothing_item.image_path}")
+                
+            # 3. Generate Preview
+            logger.info(f"🎯 [AvatarService] Generating try-on preview...")
+            # Use generate_try_on_preview which handles the logic
+            preview_result = await self.generate_try_on_preview(
+                avatar_path=avatar.original_image_path,
+                clothing_path=clothing_item.image_path,
+                clothing_name=clothing_item.name,
+                clothing_category=clothing_item.category,
+                pose_keypoints=avatar.pose_keypoints
+            )
+            
+            if not preview_result:
+                raise Exception("Failed to generate try-on preview")
+                
+            # Map keys to match frontend expectations
+            if "image_base64" in preview_result:
+                preview_result["preview_image"] = preview_result["image_base64"]
+                logger.info(f"✅ Mapped image_base64 to preview_image, length: {len(preview_result['preview_image'])}")
+            else:
+                logger.warning(f"⚠️ No image_base64 in preview_result. Keys: {preview_result.keys() if preview_result else 'None'}")
+                
+            logger.info(f"✅ Returning preview_result with keys: {list(preview_result.keys()) if preview_result else 'None'}")
+            return preview_result
+            
+        except HTTPException:
+            raise
+        except Exception as e:
+            logger.error(f"Error in perform_virtual_try_on: {str(e)}")
+            raise HTTPException(status_code=500, detail=str(e))
     
     async def generate_try_on_preview(
         self, 
@@ -337,69 +417,237 @@ class AvatarService:
         Returns base64 image data for immediate display
         """
         try:
-            logger.info(f"Generating try-on preview for {clothing_name} ({clothing_category})")
+            logger.info(f"🎯 [AvatarService] generate_try_on_preview called: clothing={clothing_name}, category={clothing_category}")
+            logger.info(f"🎯 [AvatarService] avatar_path={avatar_path}, clothing_path={clothing_path}")
             
             # For now, create a simple composite preview
             # In a real implementation, this would use advanced AI for clothing overlay
             
-            # Download avatar image from storage
+            # Download avatar image from storage using service key (more reliable than public URL)
             from app.services.storage_service import StorageService
-            avatar_url = StorageService.get_image_url(avatar_path)
+            logger.info(f"🎯 [AvatarService] Downloading avatar image content directly from storage...")
+            avatar_content, avatar_content_type = await StorageService.download_image_content(avatar_path)
             
-            # Create actual virtual try-on by overlaying clothing on the avatar
-            # This uses pose data to position clothing realistically on the person
-            preview_data = await self._create_virtual_tryon(
-                avatar_url, clothing_path, clothing_name, clothing_category, pose_keypoints
+            if not avatar_content:
+                logger.error(f"❌ [AvatarService] Failed to download avatar image content")
+                raise Exception(f"Failed to download avatar image from storage")
+            
+            logger.info(f"✅ [AvatarService] Avatar image downloaded: {len(avatar_content)} bytes, type: {avatar_content_type}")
+            
+            # Create avatar image from bytes
+            avatar_image = Image.open(io.BytesIO(avatar_content))
+            if avatar_image.mode != 'RGB':
+                avatar_image = avatar_image.convert('RGB')
+            logger.info(f"✅ [AvatarService] Avatar image loaded: size={avatar_image.size}, mode={avatar_image.mode}")
+            
+            # Download clothing image
+            logger.info(f"🎯 [AvatarService] Downloading clothing image content directly from storage...")
+            clothing_content, clothing_content_type = await StorageService.download_image_content(clothing_path)
+            
+            clothing_image = None
+            if clothing_content:
+                clothing_image = Image.open(io.BytesIO(clothing_content))
+                if clothing_image.mode not in ['RGB', 'RGBA']:
+                    clothing_image = clothing_image.convert('RGB')
+                logger.info(f"✅ [AvatarService] Clothing image loaded: size={clothing_image.size}, mode={clothing_image.mode}")
+            else:
+                logger.warning(f"⚠️ [AvatarService] Failed to download clothing image content")
+            
+            # Create actual virtual try-on using Replicate API (required, no fallback)
+            logger.info(f"🎯 [AvatarService] Calling _create_virtual_tryon_direct with images...")
+            preview_result = await self._create_virtual_tryon_direct(
+                avatar_image, clothing_image, clothing_name, clothing_category, pose_keypoints
             )
             
-            return {
-                "image_base64": preview_data,
-                "confidence": 0.85,  # Simulated confidence
-                "method": "pose_based_overlay"  # Indicates this uses pose data for positioning
-            }
+            logger.info(f"🎯 [AvatarService] _create_virtual_tryon_direct returned: method={preview_result.get('method')}, confidence={preview_result.get('confidence')}")
+            logger.info(f"🎯 [AvatarService] Image data length: {len(preview_result.get('image_base64', ''))}")
+            
+            # Return the result directly (already has image_base64, confidence, method)
+            return preview_result
             
         except Exception as e:
             logger.error(f"Error generating try-on preview: {str(e)}")
             return None
     
-    async def _create_virtual_tryon(self, avatar_url: str, clothing_path: str, clothing_name: str, category: str, pose_keypoints: dict) -> str:
-        """Create actual virtual try-on by overlaying clothing on the avatar using pose data"""
+    async def _create_virtual_tryon_direct(self, avatar_image: Image.Image, clothing_image: Optional[Image.Image], clothing_name: str, category: str, pose_keypoints: dict) -> Dict:
+        """Create virtual try-on using already-loaded images - PRIORITIZES REPLICATE"""
         try:
+            logger.info(f"🎯 [AvatarService] _create_virtual_tryon_direct called: avatar_size={avatar_image.size}, has_clothing={clothing_image is not None}, category={category}")
+            
+            # PRIORITY 1: Try to use Replicate API for high-quality virtual try-on
+            logger.info(f"🔍 Checking Replicate availability: is_available={replicate_service.is_available()}, has_clothing_image={clothing_image is not None}")
+            
+            if not replicate_service.is_available():
+                logger.error("❌ Replicate service not available - CANNOT use Replicate")
+                logger.error(f"❌ Replicate available check: {replicate_service.is_available()}")
+                logger.error(f"❌ Replicate API token: {'Set' if replicate_service.api_token else 'Not set'}")
+                raise Exception("Replicate service not available. Please configure REPLICATE_API_TOKEN in .env file")
+            
+            if not clothing_image:
+                logger.error("❌ No clothing image provided - CANNOT use Replicate")
+                raise Exception("Clothing image is required for virtual try-on")
+            
+            # Replicate is available and we have clothing image - USE IT
+            logger.info("🚀🚀🚀 USING REPLICATE API FOR VIRTUAL TRY-ON 🚀🚀🚀")
+            logger.info(f"🚀 Avatar image size: {avatar_image.size}, mode: {avatar_image.mode}")
+            logger.info(f"🚀 Clothing image size: {clothing_image.size}, mode: {clothing_image.mode}")
+            logger.info(f"🚀 Category: {category}")
+            
+            try:
+                replicate_result = await replicate_service.create_virtual_tryon(
+                    person_image=avatar_image,
+                    garment_image=clothing_image,
+                    category=category
+                )
+                
+                logger.info(f"🚀 Replicate result received: {type(replicate_result)}, has image_base64: {bool(replicate_result and replicate_result.get('image_base64'))}")
+                
+                if replicate_result and replicate_result.get("image_base64"):
+                    image_base64_len = len(replicate_result["image_base64"])
+                    logger.info(f"✅✅✅ REPLICATE VIRTUAL TRY-ON SUCCESSFUL! Image base64 length: {image_base64_len} ✅✅✅")
+                    
+                    # Return the full result dict with method info
+                    return {
+                        "image_base64": replicate_result["image_base64"],
+                        "confidence": replicate_result.get("confidence", 0.95),
+                        "method": replicate_result.get("method", "replicate_idm_vton"),
+                        "processing_time": replicate_result.get("processing_time", 0)
+                    }
+                else:
+                    logger.error("❌ Replicate returned no result")
+                    logger.error(f"❌ Replicate result: {replicate_result}")
+                    raise Exception("Replicate API returned no image data")
+                    
+            except Exception as replicate_error:
+                logger.error(f"❌❌❌ REPLICATE API ERROR - NOT FALLING BACK TO BASIC OVERLAY ❌❌❌")
+                logger.error(f"❌ Error: {str(replicate_error)}")
+                logger.error(f"❌ Error type: {type(replicate_error).__name__}")
+                import traceback
+                logger.error(f"❌ Traceback: {traceback.format_exc()}")
+                raise Exception(f"Replicate API failed: {str(replicate_error)}")
+            
+        except Exception as e:
+            logger.error(f"❌ Error in _create_virtual_tryon_direct: {str(e)}")
+            import traceback
+            logger.error(f"❌ Traceback: {traceback.format_exc()}")
+            raise
+            
+        except Exception as e:
+            logger.error(f"Error creating visual preview: {str(e)}")
+            import traceback
+            logger.error(f"Traceback: {traceback.format_exc()}")
+            # Return original avatar as fallback
+            try:
+                buffer = io.BytesIO()
+                avatar_image.save(buffer, format='PNG')
+                return base64.b64encode(buffer.getvalue()).decode('utf-8')
+            except Exception as fallback_error:
+                logger.error(f"Fallback avatar conversion also failed: {str(fallback_error)}")
+                raise
+    
+    async def _create_virtual_tryon(self, avatar_url: str, clothing_path: str, clothing_name: str, category: str, pose_keypoints: dict) -> str:
+        """Create actual virtual try-on by overlaying clothing on the avatar using Replicate API"""
+        try:
+            logger.info(f"🎯 [AvatarService] _create_virtual_tryon called: avatar_url={avatar_url}, clothing_path={clothing_path}, category={category}")
+            
             import requests
             from PIL import Image, ImageDraw, ImageFont
             import io
             from app.services.storage_service import StorageService
             
             # Download avatar image
-            response = requests.get(avatar_url)
-            if response.status_code != 200:
-                raise Exception(f"Failed to download avatar image: HTTP {response.status_code} from {avatar_url}")
+            logger.info(f"🎯 [AvatarService] Downloading avatar image from: {avatar_url}")
+            logger.info(f"🎯 [AvatarService] Avatar URL length: {len(avatar_url) if avatar_url else 0}")
+            
+            try:
+                response = requests.get(avatar_url, timeout=30)
+                logger.info(f"🎯 [AvatarService] Avatar download response: status={response.status_code}, content_length={len(response.content) if response.content else 0}")
+                
+                if response.status_code != 200:
+                    logger.error(f"❌ [AvatarService] Failed to download avatar: HTTP {response.status_code}")
+                    logger.error(f"❌ [AvatarService] Response text: {response.text[:200] if response.text else 'No response text'}")
+                    logger.error(f"❌ [AvatarService] Response headers: {dict(response.headers)}")
+                    raise Exception(f"Failed to download avatar image: HTTP {response.status_code} from {avatar_url}")
+            except requests.exceptions.RequestException as e:
+                logger.error(f"❌ [AvatarService] Request exception downloading avatar: {str(e)}")
+                raise Exception(f"Failed to download avatar image: {str(e)}")
             
             # Open avatar image
             avatar_image = Image.open(io.BytesIO(response.content))
             if avatar_image.mode != 'RGB':
                 avatar_image = avatar_image.convert('RGB')
+            logger.info(f"✅ [AvatarService] Avatar image loaded: size={avatar_image.size}, mode={avatar_image.mode}")
             
             # Download clothing
             clothing_url = StorageService.get_image_url(clothing_path) if clothing_path else None
+            logger.info(f"🎯 [AvatarService] Clothing URL: {clothing_url}")
             clothing_image = None
             
             if clothing_url:
                 try:
+                    logger.info(f"🎯 [AvatarService] Downloading clothing image from: {clothing_url}")
                     clothing_response = requests.get(clothing_url)
                     if clothing_response.status_code == 200:
                         clothing_image = Image.open(io.BytesIO(clothing_response.content))
-                        if clothing_image.mode != 'RGBA':
-                            clothing_image = clothing_image.convert('RGBA')
+                        if clothing_image.mode not in ['RGB', 'RGBA']:
+                            clothing_image = clothing_image.convert('RGB')
+                        logger.info(f"✅ [AvatarService] Clothing image loaded: size={clothing_image.size}, mode={clothing_image.mode}")
+                    else:
+                        logger.error(f"❌ [AvatarService] Failed to download clothing: HTTP {clothing_response.status_code}")
                 except Exception as e:
-                    logger.warning(f"Failed to download clothing image: {str(e)}")
+                    logger.warning(f"⚠️ [AvatarService] Failed to download clothing image: {str(e)}")
+            else:
+                logger.warning(f"⚠️ [AvatarService] No clothing URL generated from path: {clothing_path}")
             
-            # Create virtual try-on using advanced ViTON-style approach
+            # Try to use Replicate API for high-quality virtual try-on
+            logger.info(f"🔍 Checking Replicate availability: is_available={replicate_service.is_available()}, has_clothing_image={clothing_image is not None}")
+            
+            if replicate_service.is_available() and clothing_image:
+                logger.info("🚀 Using Replicate API for virtual try-on")
+                logger.info(f"🚀 Avatar image size: {avatar_image.size}, mode: {avatar_image.mode}")
+                logger.info(f"🚀 Clothing image size: {clothing_image.size}, mode: {clothing_image.mode}")
+                logger.info(f"🚀 Category: {category}")
+                try:
+                    # Generate a simple garment description from category and name
+                    garment_description = f"{clothing_name} {category.replace('_', ' ')}" if clothing_name else f"a {category.replace('_', ' ')}"
+                    
+                    replicate_result = await replicate_service.create_virtual_tryon(
+                        person_image=avatar_image,
+                        garment_image=clothing_image,
+                        category=category,
+                        garment_description=garment_description
+                    )
+                    
+                    logger.info(f"🚀 Replicate result received: {type(replicate_result)}, has image_base64: {replicate_result.get('image_base64')[:50] if replicate_result and replicate_result.get('image_base64') else 'None'}")
+                    
+                    if replicate_result and replicate_result.get("image_base64"):
+                        image_base64_len = len(replicate_result["image_base64"])
+                        logger.info(f"✅ Replicate virtual try-on successful! Image base64 length: {image_base64_len}")
+                        return replicate_result["image_base64"]
+                    else:
+                        logger.warning("⚠️ Replicate returned no result, falling back to basic overlay")
+                        logger.warning(f"⚠️ Replicate result: {replicate_result}")
+                        
+                except Exception as replicate_error:
+                    logger.error(f"❌ Replicate API error: {str(replicate_error)}")
+                    logger.error(f"❌ Error type: {type(replicate_error).__name__}")
+                    import traceback
+                    logger.error(f"❌ Traceback: {traceback.format_exc()}")
+                    logger.error("Falling back to basic overlay")
+            else:
+                if not replicate_service.is_available():
+                    logger.warning("⚠️ Replicate service not available - using basic overlay")
+                    logger.warning(f"⚠️ Replicate available check: {replicate_service.is_available()}")
+                    logger.warning(f"⚠️ Replicate API token: {'Set' if replicate_service.api_token else 'Not set'}")
+                else:
+                    logger.warning("⚠️ No clothing image - using basic overlay")
+                    logger.warning(f"⚠️ clothing_image is None or empty")
+            
+            # Fallback: Create virtual try-on using basic overlay
             result_image = avatar_image.copy()
             
             if clothing_image:
-                # AI features disabled for deployment - using basic overlay
-                logger.info("AI features disabled - using basic clothing overlay")
+                logger.info("Using basic clothing overlay")
                 result_image = self._simple_clothing_overlay(result_image, clothing_image, category)
             
             # Add subtle try-on indicator

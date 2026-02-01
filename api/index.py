@@ -5,7 +5,7 @@ Vercel serverless function entry point
 import asyncio
 import json
 from http.server import BaseHTTPRequestHandler
-from urllib.parse import urlparse, parse_qs
+from urllib.parse import parse_qs, urlparse
 
 # Import the FastAPI app from main.py
 from main import app

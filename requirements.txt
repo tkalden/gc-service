@@ -1,10 +1,11 @@
-# Minimal requirements for Vercel deployment (AI features disabled)
+# Core FastAPI application
 fastapi>=0.100.0
 uvicorn[standard]>=0.20.0
 pydantic>=2.0.0
 pydantic-settings>=2.0.0
 python-multipart>=0.0.6
 python-dotenv>=1.0.0
+mediapipe
 
 # Database and Storage
 supabase>=2.0.0
@@ -15,9 +16,21 @@ aiofiles>=23.0.0
 pyjwt>=2.7.0
 email-validator>=2.0.0
 
-# Basic Image Processing (no AI)
+# Image Processing
 pillow>=10.0.0
 requests>=2.30.0
-numpy>=1.24.0
+scikit-image>=0.21.0
+scipy>=1.11.0
+numpy>=1.24.0,<2.0.0
+rembg>=2.0.50
+replicate>=0.25.0
 
-# No OpenCV, MediaPipe, PyTorch, or other heavy AI dependencies
+# ML for Clothing Classification
+tensorflow>=2.13.0,<2.17.0
+protobuf>=3.11,<4.0.0
+
+# Optional AI features (uncomment if needed)
+mediapipe>=0.10.0
+opencv-python>=4.6.0
+# torch>=1.0.0
+# torchvision>=0.15.0

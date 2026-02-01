@@ -5,7 +5,8 @@ Logging configuration for the application
 import logging
 import logging.config
 import sys
-from typing import Dict, Any
+from typing import Any, Dict
+
 from config.settings import get_settings
 
 
@@ -80,6 +81,16 @@ def get_logging_config() -> Dict[str, Any]:
                 "handlers": ["console"],
                 "propagate": False,
             },
+            "httpcore": {
+                "level": "WARNING",  # Silence DEBUG logs from httpcore
+                "handlers": ["console"],
+                "propagate": False,
+            },
+            "httpx": {
+                "level": "INFO",  # Keep INFO but silence DEBUG
+                "handlers": ["console"],
+                "propagate": False,
+            },
         },
     }
     
@@ -100,7 +111,7 @@ def get_logging_config() -> Dict[str, Any]:
 def setup_logging() -> None:
     """Setup application logging"""
     import os
-    
+
     # Only create logs directory in non-production environments
     # Vercel serverless environment has read-only file system
     if get_settings().environment != "production":

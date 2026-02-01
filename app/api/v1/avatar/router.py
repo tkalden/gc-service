@@ -69,9 +69,13 @@ async def virtual_try_on(
 ):
     """Perform virtual try-on preview with user's avatar and clothing item"""
     try:
+        logger.info(f"🎯 [Router] Try-on request received: avatar_id={request.avatar_id}, clothing_id={request.clothing_item_id}, user_id={current_user_id}")
+        
         result = await avatar_service.perform_virtual_try_on(
             request, current_user_id
         )
+        
+        logger.info(f"🎯 [Router] Try-on completed successfully, result keys: {list(result.keys()) if result else 'None'}")
         
         return {
             "success": True,
@@ -79,7 +83,9 @@ async def virtual_try_on(
             "message": "Try-on preview generated successfully"
         }
     except Exception as e:
-        logger.error(f"Error performing virtual try-on: {str(e)}")
+        logger.error(f"❌ [Router] Error performing virtual try-on: {str(e)}")
+        import traceback
+        logger.error(f"❌ [Router] Traceback: {traceback.format_exc()}")
         raise HTTPException(status_code=500, detail=str(e))
 
 

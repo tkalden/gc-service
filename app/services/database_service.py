@@ -385,10 +385,14 @@ class DatabaseService:
             raise Exception("Supabase client not initialized")
             
         try:
+            logger.info(f"Fetching avatar for user_id: {user_id}")
             response = supabase.table("avatars").select("*").eq("user_id", user_id).order("created_at", desc=True).limit(1).execute()
+            
+            logger.info(f"Avatar query result: {len(response.data) if response.data else 0} avatars found")
             
             if response.data and len(response.data) > 0:
                 row = response.data[0]
+                logger.info(f"Avatar found: id={row.get('id')}, image_path={row.get('original_image_path')}")
                 return Avatar(
                     id=row["id"],
                     user_id=row["user_id"],
@@ -401,10 +405,12 @@ class DatabaseService:
                     updated_at=row["updated_at"]
                 )
             else:
+                logger.info(f"No avatar found for user_id: {user_id}")
                 return None
                 
         except Exception as e:
             logger.error(f"Error getting user avatar: {str(e)}")
+            logger.error(f"Error type: {type(e).__name__}, Error details: {str(e)}")
             raise
     
     @staticmethod
