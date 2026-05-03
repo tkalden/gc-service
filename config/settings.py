@@ -179,7 +179,6 @@ def get_staging_settings() -> Settings:
         log_level="INFO",
         allowed_origins=[
             "https://staging.yourdomain.com",
-            "https://*.vercel.app",
         ]
     )
 
@@ -193,7 +192,5 @@ def get_production_settings() -> Settings:
         log_level="WARNING",
         allowed_origins=[
             "https://yourdomain.com",
-            "https://*.vercel.app",
-            "https://*.vercel.com",
         ]
     )

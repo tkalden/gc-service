@@ -112,8 +112,7 @@ def setup_logging() -> None:
     """Setup application logging"""
     import os
 
-    # Only create logs directory in non-production environments
-    # Vercel serverless environment has read-only file system
+    # Only create logs directory locally — production filesystem may be read-only
     if get_settings().environment != "production":
         try:
             os.makedirs("logs", exist_ok=True)

@@ -1,5 +1,5 @@
 """
-Main FastAPI application for Vercel deployment
+Main FastAPI application
 """
 
 from fastapi import FastAPI
@@ -122,4 +122,3 @@ async def shutdown_event():
     logger.info("Application shutdown")
 
 # FastAPI app is ready for use
-# For Vercel deployment, see api/index.py
