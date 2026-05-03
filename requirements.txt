@@ -5,7 +5,6 @@ pydantic>=2.0.0
 pydantic-settings>=2.0.0
 python-multipart>=0.0.6
 python-dotenv>=1.0.0
-mediapipe
 
 # Database and Storage
 supabase>=2.0.0
@@ -26,11 +25,9 @@ rembg>=2.0.50
 replicate>=0.25.0
 
 # ML for Clothing Classification
-tensorflow>=2.13.0,<2.17.0
-protobuf>=3.11,<4.0.0
+# tensorflow-cpu is ~200MB vs tensorflow's 600MB+; Railway builder has limited RAM
+tensorflow-cpu>=2.13.0,<2.17.0
+protobuf>=3.20,<4.0.0
 
-# Optional AI features (uncomment if needed)
-mediapipe>=0.10.0
-opencv-python>=4.6.0
-# torch>=1.0.0
-# torchvision>=0.15.0
+# opencv-headless — server has no display, opencv-python will fail
+opencv-python-headless>=4.6.0

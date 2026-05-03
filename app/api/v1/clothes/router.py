@@ -36,13 +36,16 @@ async def get_all_clothes(current_user_id: str = Depends(get_current_user_id)):
 
 
 @router.get("/{item_id}", response_model=ClothingItemResponse)
-async def get_clothing_item(item_id: str):
-    """Get a specific clothing item by ID"""
+async def get_clothing_item(
+    item_id: str,
+    current_user_id: str = Depends(get_current_user_id),
+):
+    """Get a specific clothing item owned by the current user"""
     try:
-        item = await DatabaseService.get_clothing_item_by_id(item_id)
+        item = await DatabaseService.get_clothing_item_by_id(item_id, current_user_id)
         if not item:
             raise HTTPException(status_code=404, detail=CLOTHING_ITEM_NOT_FOUND)
-        
+
         return ClothingItemResponse(
             success=True,
             data=item,
@@ -75,10 +78,14 @@ async def create_clothing_item(
 
 
 @router.put("/{item_id}", response_model=ClothingItemResponse)
-async def update_clothing_item(item_id: str, update_data: ClothingItemUpdate):
-    """Update an existing clothing item"""
+async def update_clothing_item(
+    item_id: str,
+    update_data: ClothingItemUpdate,
+    current_user_id: str = Depends(get_current_user_id),
+):
+    """Update a clothing item owned by the current user"""
     try:
-        item = await DatabaseService.update_clothing_item(item_id, update_data)
+        item = await DatabaseService.update_clothing_item(item_id, update_data, current_user_id)
         if not item:
             raise HTTPException(status_code=404, detail=CLOTHING_ITEM_NOT_FOUND)
         
@@ -95,11 +102,14 @@ async def update_clothing_item(item_id: str, update_data: ClothingItemUpdate):
 
 
 @router.delete("/{item_id}", response_model=DeleteResponse)
-async def delete_clothing_item(item_id: str):
-    """Delete a clothing item"""
+async def delete_clothing_item(
+    item_id: str,
+    current_user_id: str = Depends(get_current_user_id),
+):
+    """Delete a clothing item owned by the current user"""
     try:
-        # Get the item first to find the image path
-        item = await DatabaseService.get_clothing_item_by_id(item_id)
+        # Fetch with user_id to enforce ownership — returns None if not owner
+        item = await DatabaseService.get_clothing_item_by_id(item_id, current_user_id)
         if not item:
             raise HTTPException(status_code=404, detail=CLOTHING_ITEM_NOT_FOUND)
         
