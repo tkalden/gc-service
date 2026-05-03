@@ -6,6 +6,7 @@ import io
 import logging
 import os
 import tempfile
+import threading
 from typing import Optional, Tuple
 
 import requests
@@ -29,40 +30,74 @@ except (ImportError, OSError) as e:
     )
 
 class BackgroundRemovalService:
-    def __init__(self):
+    """Lazy-loads rembg ONNX sessions on first use so API startup is not blocked."""
+
+    def __init__(self) -> None:
         self.session = None
         self.better_session = None
-        if REMBG_AVAILABLE:
+        self._lazy_lock = threading.Lock()
+        self._lazy_init_attempted = False
+
+    def _ensure_sessions(self) -> None:
+        """Download/load rembg models once (heavy); do not run at import time."""
+        if not REMBG_AVAILABLE or self._lazy_init_attempted:
+            return
+        with self._lazy_lock:
+            if self._lazy_init_attempted:
+                return
+            self._lazy_init_attempted = True
             try:
-                # Try different initialization methods for rembg compatibility
                 try:
-                    # Try with u2net_human_seg model first (better for clothing)
-                    self.better_session = new_session('u2net_human_seg')
-                    logger.info("rembg session initialized with u2net_human_seg model (better for clothing)")
+                    self.better_session = new_session("u2net_human_seg")
+                    logger.info(
+                        "rembg session initialized with u2net_human_seg "
+                        "(better for clothing)"
+                    )
                 except Exception as e1:
-                    logger.warning(f"u2net_human_seg model failed: {e1}, trying u2net")
+                    logger.warning(
+                        "u2net_human_seg model failed: %s, trying u2net", e1
+                    )
                     try:
-                        # Try with u2net model
-                        self.session = new_session('u2net')
+                        self.session = new_session("u2net")
                         logger.info("rembg session initialized with u2net model")
                     except Exception as e2:
-                        logger.warning(f"u2net model failed: {e2}, trying default model")
+                        logger.warning(
+                            "u2net model failed: %s, trying default model", e2
+                        )
                         try:
-                            # Try with default model
                             self.session = new_session()
-                            logger.info("rembg session initialized with default model")
+                            logger.info(
+                                "rembg session initialized with default model"
+                            )
                         except Exception as e3:
-                            logger.warning(f"Default model failed: {e3}, trying without session")
-                            # Try without session (direct remove function)
-                            self.session = "direct"  # Use direct remove function
+                            logger.warning(
+                                "Default model failed: %s, trying direct "
+                                "remove",
+                                e3,
+                            )
+                            self.session = "direct"
                             logger.info("Using direct rembg remove function")
             except Exception as e:
-                logger.error(f"Failed to initialize rembg: {e}")
+                logger.error("Failed to initialize rembg: %s", e)
                 self.session = None
-    
+                self.better_session = None
+
     def is_configured(self) -> bool:
-        """Check if the background removal service is available"""
-        return REMBG_AVAILABLE and (self.session is not None or self.better_session is not None)
+        """True after rembg import succeeded and at least one session works."""
+        if not REMBG_AVAILABLE:
+            return False
+        self._ensure_sessions()
+        return self.session is not None or self.better_session is not None
+
+    def _remove_raw(self, image_data: bytes) -> bytes:
+        """Apply rembg using the best session (call after ``is_configured()``)."""
+        if self.better_session is not None:
+            return remove(image_data, session=self.better_session)
+        if self.session == "direct":
+            return remove(image_data)
+        if self.session is not None:
+            return remove(image_data, session=self.session)
+        raise RuntimeError("rembg session not initialized")
     
     def remove_background_from_url(self, image_url: str) -> Tuple[bool, Optional[str], Optional[str]]:
         """
@@ -82,7 +117,7 @@ class BackgroundRemovalService:
             
             # Process with rembg
             input_image = response.content
-            output_image = remove(input_image, session=self.session)
+            output_image = self._remove_raw(input_image)
             
             # Convert to base64
             base64_image = base64.b64encode(output_image).decode('utf-8')
@@ -117,8 +152,7 @@ class BackgroundRemovalService:
             with open(file_path, 'rb') as image_file:
                 input_image = image_file.read()
             
-            # Process with rembg
-            output_image = remove(input_image, session=self.session)
+            output_image = self._remove_raw(input_image)
             
             # Convert to base64
             base64_image = base64.b64encode(output_image).decode('utf-8')
@@ -166,16 +200,11 @@ class BackgroundRemovalService:
                 return False, None, f"Invalid image data: {str(e)}"
             
             # Process with rembg using the best available model
+            output_image = self._remove_raw(image_data)
             if self.better_session is not None:
-                # Use the better human segmentation model
-                output_image = remove(image_data, session=self.better_session)
-                logger.info("Used u2net_human_seg model for better clothing segmentation")
-            elif self.session == "direct":
-                # Use direct remove function without session
-                output_image = remove(image_data)
-            else:
-                # Use session-based remove function
-                output_image = remove(image_data, session=self.session)
+                logger.info(
+                    "Used u2net_human_seg model for better clothing segmentation"
+                )
             
             # Post-process to clean up remaining background and remove hangers
             output_image = self._clean_background(output_image)

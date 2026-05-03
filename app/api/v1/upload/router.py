@@ -11,7 +11,7 @@ from app.core.exceptions import StorageException, ValidationException
 from app.core.logging import get_logger
 from app.middleware.middleware import get_current_user_id
 from app.models.models import ImageUploadResponse
-from app.services.background_removal import BackgroundRemovalService
+from app.services.background_removal import REMBG_AVAILABLE, BackgroundRemovalService
 from app.services.clothing_classifier import clothing_classifier
 from app.services.enhanced_clothing_classifier import \
     EnhancedClothingClassifier
@@ -25,9 +25,10 @@ settings = get_settings()
 
 # Initialize services
 background_removal_service = BackgroundRemovalService()
-logger.info(f"Background removal service initialized - configured: {background_removal_service.is_configured()}")
-logger.info(f"Better session available: {background_removal_service.better_session is not None}")
-logger.info(f"Fallback session available: {background_removal_service.session is not None}")
+logger.info(
+    "Background removal: rembg_import_ok=%s (ONNX sessions load on first use)",
+    REMBG_AVAILABLE,
+)
 
 enhanced_classifier = EnhancedClothingClassifier(
     model_path=os.path.join(os.path.dirname(__file__), "../../../../models/clothes_classifier_model.h5")

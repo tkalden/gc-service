@@ -40,7 +40,9 @@ async def upload_avatar(
     try:
         if not avatar_service.is_available():
             raise ServiceUnavailableException(
-                "Avatar service not available. Please install MediaPipe: pip install mediapipe"
+                "Server-side avatar pose processing is disabled (MediaPipe off). "
+                "Upload avatars via a client path or enable MediaPipe in code; "
+                "virtual try-on uses Replicate and does not require MediaPipe."
             )
         result = await avatar_service.process_avatar_upload(file, current_user_id)
         return AvatarResponse(

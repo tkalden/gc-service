@@ -1,6 +1,9 @@
 """
 Avatar Service for Digital Twin Creation
-Uses MediaPipe for pose detection and body segmentation
+
+Virtual try-on is done via the Replicate API. Optional local MediaPipe pose /
+segmentation for processed avatar uploads is disabled in production builds so
+the service does not depend on ``mediapipe`` (see MEDIAPIPE_AVAILABLE).
 """
 
 import os
@@ -31,18 +34,10 @@ except ImportError:
     OPENCV_AVAILABLE = False
     logger.warning("OpenCV library not installed. Install with: pip install opencv-python")
 
-# Try to import MediaPipe, handle if not installed
-try:
-    import mediapipe as mp
-
-    MEDIAPIPE_AVAILABLE = True
-    logger.info("MediaPipe library loaded successfully")
-except ImportError as e:
-    MEDIAPIPE_AVAILABLE = False
-    logger.warning(
-        "MediaPipe unavailable: %s. Install with: pip install mediapipe",
-        e,
-    )
+# Local MediaPipe (pose + selfie segmentation) is off: API deploys use Replicate
+# only. Set True only if you add ``mediapipe`` and restore initialization in
+# ``AvatarService.__init__``.
+MEDIAPIPE_AVAILABLE = False
 
 
 class AvatarService:
@@ -52,46 +47,7 @@ class AvatarService:
         self.pose_detector = None
         self.selfie_segmentation = None
         self.executor = ThreadPoolExecutor(max_workers=4)  # For CPU-intensive tasks
-        
-        if MEDIAPIPE_AVAILABLE:
-            try:
-                # Initialize MediaPipe Pose with simpler configuration
-                mp_pose = mp.solutions.pose
-                self.pose_detector = mp_pose.Pose(
-                    static_image_mode=True,
-                    model_complexity=1,  # Reduced from 2 to 1 for better compatibility
-                    enable_segmentation=False,  # Disable segmentation initially to avoid config issues
-                    min_detection_confidence=0.5,
-                    min_tracking_confidence=0.5
-                )
-                
-                # Initialize MediaPipe Selfie Segmentation
-                mp_selfie_segmentation = mp.solutions.selfie_segmentation
-                self.selfie_segmentation = mp_selfie_segmentation.SelfieSegmentation(
-                    model_selection=0  # Use model 0 (general) instead of 1 for better compatibility
-                )
-                
-                logger.info("MediaPipe models initialized successfully")
-            except Exception as e:
-                logger.error(f"Failed to initialize MediaPipe models: {e}")
-                logger.error(f"MediaPipe error details: {str(e)}")
-                # Try with minimal configuration
-                try:
-                    logger.info("Attempting MediaPipe initialization with minimal config...")
-                    self.pose_detector = mp_pose.Pose(
-                        static_image_mode=True,
-                        model_complexity=0,  # Simplest model
-                        min_detection_confidence=0.5
-                    )
-                    self.selfie_segmentation = mp_selfie_segmentation.SelfieSegmentation(
-                        model_selection=0
-                    )
-                    logger.info("MediaPipe initialized with minimal config")
-                except Exception as e2:
-                    logger.error(f"MediaPipe initialization failed even with minimal config: {e2}")
-                    self.pose_detector = None
-                    self.selfie_segmentation = None
-    
+
     def is_available(self) -> bool:
         """Check if the avatar service is available"""
         return OPENCV_AVAILABLE and MEDIAPIPE_AVAILABLE and self.pose_detector is not None
@@ -103,7 +59,13 @@ class AvatarService:
         """
         try:
             if not self.is_available():
-                return False, None, "Avatar service not available. Please install MediaPipe: pip install mediapipe"
+                return (
+                    False,
+                    None,
+                    "Local avatar processing (MediaPipe) is disabled. "
+                    "Use Replicate try-on; enable MediaPipe only if you need "
+                    "server-side pose extraction.",
+                )
             
             start_time = time.time()
             logger.info(f"Processing avatar for user: {user_id}")
@@ -266,8 +228,10 @@ class AvatarService:
         }
     
     def _create_processed_image(self, rgb_image: np.ndarray, pose_results) -> np.ndarray:
-        """Create processed image with pose overlay"""
+        """Create processed image with pose overlay (requires ``mediapipe``)."""
         try:
+            import mediapipe as mp
+
             # Create a copy of the original image
             processed = rgb_image.copy()
             

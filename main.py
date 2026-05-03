@@ -2,6 +2,8 @@
 Main FastAPI application
 """
 
+import os
+
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.middleware.trustedhost import TrustedHostMiddleware
@@ -115,7 +117,14 @@ app.include_router(api_router, prefix=settings.api_v1_prefix)
 # Startup and shutdown events
 @app.on_event("startup")
 async def startup_event():
-    logger.info("Application startup")
+    """Log runtime context once the app is serving (Railway / local)."""
+    logger.info(
+        "application_startup environment=%s port=%s log_level=%s version=%s",
+        settings.environment,
+        os.environ.get("PORT", ""),
+        settings.log_level,
+        settings.app_version,
+    )
 
 @app.on_event("shutdown")
 async def shutdown_event():

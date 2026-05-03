@@ -13,5 +13,16 @@ if [ "${DOWNLOAD_MODEL:-false}" = "true" ] && [ ! -f "$MODEL_PATH" ]; then
 fi
 
 PORT="${PORT:-8000}"
-echo "Starting uvicorn on 0.0.0.0:${PORT}"
-exec /opt/venv/bin/uvicorn main:app --host 0.0.0.0 --port "${PORT}"
+UVICORN_LOG_LEVEL="${UVICORN_LOG_LEVEL:-info}"
+
+# Flush logs immediately (helps Railway capture lines before a crash)
+export PYTHONUNBUFFERED=1
+
+echo "Starting uvicorn on 0.0.0.0:${PORT} log_level=${UVICORN_LOG_LEVEL}"
+exec /opt/venv/bin/uvicorn main:app \
+  --host 0.0.0.0 \
+  --port "${PORT}" \
+  --log-level "${UVICORN_LOG_LEVEL}" \
+  --access-log \
+  --no-use-colors \
+  --proxy-headers
