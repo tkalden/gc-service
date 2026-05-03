@@ -34,11 +34,15 @@ except ImportError:
 # Try to import MediaPipe, handle if not installed
 try:
     import mediapipe as mp
+
     MEDIAPIPE_AVAILABLE = True
     logger.info("MediaPipe library loaded successfully")
-except ImportError:
+except ImportError as e:
     MEDIAPIPE_AVAILABLE = False
-    logger.warning("MediaPipe library not installed. Install with: pip install mediapipe")
+    logger.warning(
+        "MediaPipe unavailable: %s. Install with: pip install mediapipe",
+        e,
+    )
 
 
 class AvatarService:

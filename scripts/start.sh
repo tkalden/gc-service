@@ -12,4 +12,6 @@ if [ "${DOWNLOAD_MODEL:-false}" = "true" ] && [ ! -f "$MODEL_PATH" ]; then
     echo "Model downloaded ($(du -h $MODEL_PATH | cut -f1))"
 fi
 
-exec /opt/venv/bin/uvicorn main:app --host 0.0.0.0 --port $PORT
+PORT="${PORT:-8000}"
+echo "Starting uvicorn on 0.0.0.0:${PORT}"
+exec /opt/venv/bin/uvicorn main:app --host 0.0.0.0 --port "${PORT}"

@@ -14,14 +14,19 @@ from PIL import Image
 
 logger = logging.getLogger(__name__)
 
-# Try to import rembg, handle if not installed
+# Try to import rembg, handle if not installed or native deps fail
 try:
     from rembg import new_session, remove
+
     REMBG_AVAILABLE = True
     logger.info("rembg library loaded successfully")
-except ImportError:
+except (ImportError, OSError) as e:
     REMBG_AVAILABLE = False
-    logger.warning("rembg library not installed. Install with: pip install rembg")
+    logger.warning(
+        "rembg unavailable: %s. Try: pip install 'rembg[cpu]' "
+        "(installs onnxruntime on Linux).",
+        e,
+    )
 
 class BackgroundRemovalService:
     def __init__(self):

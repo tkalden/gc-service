@@ -21,7 +21,7 @@ requests>=2.30.0
 scikit-image>=0.21.0
 scipy>=1.11.0
 numpy>=1.24.0,<2.0.0
-rembg>=2.0.50
+rembg[cpu]>=2.0.50
 replicate>=0.25.0
 
 # ML for Clothing Classification

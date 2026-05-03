@@ -12,7 +12,7 @@ fi
 pip uninstall -y rembg
 
 # Install rembg with specific version
-pip install rembg==2.0.50
+pip install 'rembg[cpu]>=2.0.50'
 
 # Verify installation
 python -c "from rembg import remove; print('✅ rembg installed successfully')"
