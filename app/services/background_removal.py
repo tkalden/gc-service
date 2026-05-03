@@ -7,7 +7,7 @@ import logging
 import os
 import tempfile
 import threading
-from typing import Optional, Tuple
+from typing import Any, Callable, Optional, Tuple
 
 import requests
 from fastapi import HTTPException
@@ -15,19 +15,36 @@ from PIL import Image
 
 logger = logging.getLogger(__name__)
 
-# Try to import rembg, handle if not installed or native deps fail
-try:
-    from rembg import new_session, remove
+# rembg pulls in onnxruntime (~hundreds of MB RSS). Import only on first use so
+# /health and Uvicorn can bind on small Railway instances.
+_rembg_import_lock = threading.Lock()
+_rembg_import_ok: Optional[bool] = None
+_rembg_new_session: Optional[Callable[..., Any]] = None
+_rembg_remove: Optional[Callable[..., Any]] = None
 
-    REMBG_AVAILABLE = True
-    logger.info("rembg library loaded successfully")
-except (ImportError, OSError) as e:
-    REMBG_AVAILABLE = False
-    logger.warning(
-        "rembg unavailable: %s. Try: pip install 'rembg[cpu]' "
-        "(installs onnxruntime on Linux).",
-        e,
-    )
+
+def _ensure_rembg_imported() -> bool:
+    """Load rembg once (thread-safe). Avoid at module import time."""
+    global _rembg_import_ok, _rembg_new_session, _rembg_remove
+    if _rembg_import_ok is not None:
+        return _rembg_import_ok
+    with _rembg_import_lock:
+        if _rembg_import_ok is not None:
+            return _rembg_import_ok
+        try:
+            from rembg import new_session as _ns, remove as _rm
+
+            _rembg_new_session = _ns
+            _rembg_remove = _rm
+            _rembg_import_ok = True
+            logger.info("rembg library loaded (lazy)")
+        except (ImportError, OSError) as e:
+            _rembg_import_ok = False
+            logger.warning(
+                "rembg unavailable: %s. Try: pip install 'rembg[cpu]'",
+                e,
+            )
+        return _rembg_import_ok
 
 class BackgroundRemovalService:
     """Lazy-loads rembg ONNX sessions on first use so API startup is not blocked."""
@@ -40,7 +57,10 @@ class BackgroundRemovalService:
 
     def _ensure_sessions(self) -> None:
         """Download/load rembg models once (heavy); do not run at import time."""
-        if not REMBG_AVAILABLE or self._lazy_init_attempted:
+        if not _ensure_rembg_imported() or self._lazy_init_attempted:
+            return
+        ns = _rembg_new_session
+        if ns is None:
             return
         with self._lazy_lock:
             if self._lazy_init_attempted:
@@ -48,7 +68,7 @@ class BackgroundRemovalService:
             self._lazy_init_attempted = True
             try:
                 try:
-                    self.better_session = new_session("u2net_human_seg")
+                    self.better_session = ns("u2net_human_seg")
                     logger.info(
                         "rembg session initialized with u2net_human_seg "
                         "(better for clothing)"
@@ -58,14 +78,14 @@ class BackgroundRemovalService:
                         "u2net_human_seg model failed: %s, trying u2net", e1
                     )
                     try:
-                        self.session = new_session("u2net")
+                        self.session = ns("u2net")
                         logger.info("rembg session initialized with u2net model")
                     except Exception as e2:
                         logger.warning(
                             "u2net model failed: %s, trying default model", e2
                         )
                         try:
-                            self.session = new_session()
+                            self.session = ns()
                             logger.info(
                                 "rembg session initialized with default model"
                             )
@@ -84,19 +104,22 @@ class BackgroundRemovalService:
 
     def is_configured(self) -> bool:
         """True after rembg import succeeded and at least one session works."""
-        if not REMBG_AVAILABLE:
+        if not _ensure_rembg_imported():
             return False
         self._ensure_sessions()
         return self.session is not None or self.better_session is not None
 
     def _remove_raw(self, image_data: bytes) -> bytes:
         """Apply rembg using the best session (call after ``is_configured()``)."""
+        rm = _rembg_remove
+        if rm is None:
+            raise RuntimeError("rembg remove not loaded")
         if self.better_session is not None:
-            return remove(image_data, session=self.better_session)
+            return rm(image_data, session=self.better_session)
         if self.session == "direct":
-            return remove(image_data)
+            return rm(image_data)
         if self.session is not None:
-            return remove(image_data, session=self.session)
+            return rm(image_data, session=self.session)
         raise RuntimeError("rembg session not initialized")
     
     def remove_background_from_url(self, image_url: str) -> Tuple[bool, Optional[str], Optional[str]]:

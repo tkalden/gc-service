@@ -11,7 +11,7 @@ from app.core.exceptions import StorageException, ValidationException
 from app.core.logging import get_logger
 from app.middleware.middleware import get_current_user_id
 from app.models.models import ImageUploadResponse
-from app.services.background_removal import REMBG_AVAILABLE, BackgroundRemovalService
+from app.services.background_removal import BackgroundRemovalService
 from app.services.clothing_classifier import clothing_classifier
 from app.services.enhanced_clothing_classifier import \
     EnhancedClothingClassifier
@@ -26,8 +26,7 @@ settings = get_settings()
 # Initialize services
 background_removal_service = BackgroundRemovalService()
 logger.info(
-    "Background removal: rembg_import_ok=%s (ONNX sessions load on first use)",
-    REMBG_AVAILABLE,
+    "Background removal: rembg/onnxruntime load deferred until first use",
 )
 
 enhanced_classifier = EnhancedClothingClassifier(
