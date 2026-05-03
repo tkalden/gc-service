@@ -5,6 +5,7 @@ Extends the base classifier to include seasonal analysis
 import base64
 import io
 import logging
+import os
 from typing import Dict, List, Optional, Tuple
 
 import numpy as np
@@ -12,14 +13,8 @@ from PIL import Image
 
 logger = logging.getLogger(__name__)
 
-# Try to import TensorFlow
-try:
-    import tensorflow as tf
-    TF_AVAILABLE = True
-    logger.info("TensorFlow loaded successfully")
-except Exception as e:
-    TF_AVAILABLE = False
-    logger.warning(f"TensorFlow not available: {str(e)}")
+TF_AVAILABLE = False
+tf = None
 
 
 class EnhancedClothingClassifier:
@@ -84,14 +79,23 @@ class EnhancedClothingClassifier:
         """Initialize the enhanced clothing classifier"""
         self.model = None
         self.image_size = (299, 299)
-        
-        if TF_AVAILABLE and model_path:
-            try:
-                self.model = tf.keras.models.load_model(model_path)
-                logger.info(f"Enhanced clothing classifier model loaded from {model_path}")
-            except Exception as e:
-                logger.error(f"Failed to load model: {str(e)}")
-                self.model = None
+
+        if model_path and os.path.exists(model_path):
+            global TF_AVAILABLE, tf
+            if not TF_AVAILABLE:
+                try:
+                    import tensorflow as _tf
+                    tf = _tf
+                    TF_AVAILABLE = True
+                except Exception as e:
+                    logger.warning(f"TensorFlow not available: {e}")
+            if TF_AVAILABLE:
+                try:
+                    self.model = tf.keras.models.load_model(model_path)
+                    logger.info(f"Enhanced clothing classifier model loaded from {model_path}")
+                except Exception as e:
+                    logger.error(f"Failed to load model: {e}")
+                    self.model = None
     
     def is_configured(self) -> bool:
         """Check if classifier is ready"""
