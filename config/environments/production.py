@@ -14,8 +14,6 @@ def get_production_config() -> Settings:
         log_level="WARNING",
         allowed_origins=[
             "https://yourdomain.com",
-            "https://*.vercel.app",
-            "https://*.vercel.com",
         ],
         rate_limit_requests=100,  # Stricter for production
         enable_metrics=True,
