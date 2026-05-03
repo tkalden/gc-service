@@ -3,7 +3,7 @@ set -e
 
 MODEL_PATH="models/clothes_classifier_model.h5"
 
-if [ ! -f "$MODEL_PATH" ]; then
+if [ "${DOWNLOAD_MODEL:-false}" = "true" ] && [ ! -f "$MODEL_PATH" ]; then
     echo "Downloading clothing classifier model..."
     mkdir -p models
     curl -fL \
