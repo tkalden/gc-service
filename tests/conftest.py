@@ -32,6 +32,8 @@ TEST_PASSWORD = "password123"
 def _check_supabase_reachable() -> None:
     """Raise pytest.skip if Supabase can't be reached within 5 seconds."""
     settings = get_settings()
+    if not settings.supabase_url or not settings.supabase_service_key:
+        pytest.skip("SUPABASE_URL / SUPABASE_SERVICE_KEY not set — skipping Supabase-dependent tests")
     try:
         resp = httpx.get(
             f"{settings.supabase_url}/rest/v1/",
@@ -42,8 +44,8 @@ def _check_supabase_reachable() -> None:
             pytest.skip(
                 f"Supabase returned {resp.status_code} — skipping Supabase-dependent tests"
             )
-    except httpx.ConnectError:
-        pytest.skip("Supabase not reachable (NXDOMAIN / connection refused) — skipping Supabase-dependent tests")
+    except (httpx.ConnectError, httpx.UnsupportedProtocol):
+        pytest.skip("Supabase not reachable — skipping Supabase-dependent tests")
     except httpx.TimeoutException:
         pytest.skip("Supabase timed out — skipping Supabase-dependent tests")
 
