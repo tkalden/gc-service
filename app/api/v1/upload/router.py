@@ -2,6 +2,7 @@
 File upload router
 """
 
+import os
 from typing import Optional
 
 from fastapi import APIRouter, Depends, File, Form, HTTPException, UploadFile
@@ -29,7 +30,7 @@ logger.info(f"Better session available: {background_removal_service.better_sessi
 logger.info(f"Fallback session available: {background_removal_service.session is not None}")
 
 enhanced_classifier = EnhancedClothingClassifier(
-    model_path="/Users/tenzinkalden/gc-service/models/clothes_classifier_model.h5"
+    model_path=os.path.join(os.path.dirname(__file__), "../../../../models/clothes_classifier_model.h5")
 )
 title_generator = TitleGenerator()
 

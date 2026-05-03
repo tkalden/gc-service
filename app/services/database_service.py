@@ -56,13 +56,16 @@ class DatabaseService:
             raise
     
     @staticmethod
-    async def get_clothing_item_by_id(item_id: str) -> Optional[ClothingItem]:
-        """Get a specific clothing item by ID"""
+    async def get_clothing_item_by_id(item_id: str, user_id: Optional[str] = None) -> Optional[ClothingItem]:
+        """Get a specific clothing item by ID. Pass user_id to enforce ownership."""
         if not supabase:
             raise Exception("Supabase client not initialized")
-            
+
         try:
-            response = supabase.table("clothing_items").select("*").eq("id", item_id).execute()
+            query = supabase.table("clothing_items").select("*").eq("id", item_id)
+            if user_id:
+                query = query.eq("user_id", user_id)
+            response = query.execute()
             
             if not response.data:
                 return None
@@ -172,11 +175,11 @@ class DatabaseService:
             raise
     
     @staticmethod
-    async def update_clothing_item(item_id: str, update_data: ClothingItemUpdate) -> Optional[ClothingItem]:
-        """Update an existing clothing item"""
+    async def update_clothing_item(item_id: str, update_data: ClothingItemUpdate, user_id: Optional[str] = None) -> Optional[ClothingItem]:
+        """Update an existing clothing item. Pass user_id to enforce ownership."""
         if not supabase:
             raise Exception("Supabase client not initialized")
-            
+
         try:
             # Prepare update data
             update_dict = {}
@@ -188,12 +191,15 @@ class DatabaseService:
                 update_dict["seasons"] = update_data.seasons
             if update_data.metadata is not None:
                 update_dict["metadata"] = update_data.metadata
-            
+
             if not update_dict:
                 # No updates to make
-                return await DatabaseService.get_clothing_item_by_id(item_id)
-            
-            response = supabase.table("clothing_items").update(update_dict).eq("id", item_id).execute()
+                return await DatabaseService.get_clothing_item_by_id(item_id, user_id)
+
+            query = supabase.table("clothing_items").update(update_dict).eq("id", item_id)
+            if user_id:
+                query = query.eq("user_id", user_id)
+            response = query.execute()
             
             if not response.data:
                 return None
