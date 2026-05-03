@@ -37,7 +37,7 @@ jobs:
           SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
           SUPABASE_SERVICE_KEY: ${{ secrets.SUPABASE_SERVICE_KEY }}
           SECRET_KEY: ${{ secrets.SECRET_KEY }}
-          ENVIRONMENT: test
+          ENVIRONMENT: development
           DEBUG: "false"
           LOG_LEVEL: WARNING
           # Replicate is mocked in tests — dummy value satisfies any env checks
