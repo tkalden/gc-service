@@ -37,6 +37,8 @@ jobs:
           DEBUG: "false"
           LOG_LEVEL: WARNING
           REPLICATE_API_TOKEN: "dummy_for_ci"
+          TEST_USER_EMAIL: ${{ secrets.TEST_USER_EMAIL }}
+          TEST_USER_PASSWORD: ${{ secrets.TEST_USER_PASSWORD }}
         run: |
           pytest tests/integration/ --ignore=tests/integration/test_upload.py -q
 

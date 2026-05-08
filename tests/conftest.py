@@ -15,6 +15,7 @@ CI stays green with a clear "skipped: Supabase unavailable" message.
 
 import base64
 import io
+import os
 
 import httpx
 import pytest
@@ -25,8 +26,8 @@ from PIL import Image
 from config.settings import get_settings
 from main import app
 
-TEST_EMAIL = "test-user@example.com"
-TEST_PASSWORD = "***"
+TEST_EMAIL = os.getenv("TEST_USER_EMAIL", "")
+TEST_PASSWORD = os.getenv("TEST_USER_PASSWORD", "")
 
 
 def _check_supabase_reachable() -> None:
@@ -63,6 +64,8 @@ async def client():
 @pytest_asyncio.fixture(scope="session")
 async def access_token(client: AsyncClient) -> str:
     _check_supabase_reachable()  # skip entire session if Supabase is down
+    if not TEST_EMAIL or not TEST_PASSWORD:
+        pytest.skip("TEST_USER_EMAIL / TEST_USER_PASSWORD not set — skipping auth-dependent tests")
 
     resp = await client.post(
         "/api/v1/auth/login",
