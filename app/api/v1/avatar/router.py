@@ -2,9 +2,12 @@
 Avatar router
 """
 
+import time
 import uuid
 from typing import Dict
 from fastapi import APIRouter, BackgroundTasks, Depends, File, HTTPException, UploadFile
+
+JOB_TTL = 600  # seconds — jobs older than this are treated as failed
 
 from app.core.exceptions import ServiceUnavailableException
 from app.core.logging import get_logger
@@ -15,7 +18,7 @@ from app.services.avatar_service import avatar_service
 logger = get_logger(__name__)
 router = APIRouter()
 
-# In-memory job store: job_id → {status, result, error}
+# In-memory job store: job_id → {status, result, error, created_at}
 # "processing" | "completed" | "failed"
 _jobs: Dict[str, dict] = {}
 
@@ -24,11 +27,11 @@ async def _run_try_on_job(job_id: str, request: TryOnRequest, user_id: str):
     """Background task that runs the Replicate call and updates _jobs."""
     try:
         result = await avatar_service.perform_virtual_try_on(request, user_id)
-        _jobs[job_id] = {"status": "completed", "result": result}
+        _jobs[job_id] = {"status": "completed", "result": result, "created_at": _jobs[job_id]["created_at"]}
         logger.info(f"✅ Try-on job {job_id} completed")
     except Exception as e:
         logger.error(f"❌ Try-on job {job_id} failed: {e}")
-        _jobs[job_id] = {"status": "failed", "error": str(e)}
+        _jobs[job_id] = {"status": "failed", "error": str(e), "created_at": _jobs[job_id]["created_at"]}
 
 
 @router.post("/upload", response_model=AvatarResponse)
@@ -84,7 +87,7 @@ async def virtual_try_on(
     Poll GET /avatar/try-on/status/{job_id} for the result.
     """
     job_id = str(uuid.uuid4())
-    _jobs[job_id] = {"status": "processing"}
+    _jobs[job_id] = {"status": "processing", "created_at": time.time()}
     background_tasks.add_task(_run_try_on_job, job_id, request, current_user_id)
     logger.info(f"🚀 Try-on job {job_id} queued for user {current_user_id}")
     return {"success": True, "job_id": job_id, "status": "processing"}
@@ -100,8 +103,13 @@ async def get_tryon_status(
     if not job:
         raise HTTPException(status_code=404, detail="Job not found")
 
+    # Expire stale processing jobs that Replicate never resolved
+    if job["status"] == "processing" and time.time() - job.get("created_at", 0) > JOB_TTL:
+        _jobs.pop(job_id, None)
+        logger.warning(f"⏰ Job {job_id} expired after {JOB_TTL}s")
+        return {"success": False, "status": "failed", "error": "Job timed out"}
+
     if job["status"] == "completed":
-        # Clean up after delivering the result
         _jobs.pop(job_id, None)
         return {"success": True, "status": "completed", "data": job["result"]}
 

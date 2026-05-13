@@ -42,8 +42,9 @@ CATEGORY_MAP = {
     "one-pieces": "dresses",
 }
 
-MODEL = "cuuupid/idm-vton:c871bb9b046607b680449ecbae55fd8c6d945e0a1948644bf2361b3d021d3ff4"
-DEFAULT_STEPS = 15  # was 30 — same quality, ~2x faster
+MODEL = "cuuupid/idm-vton:0513734a452173b8173e907e3a59d19a36266e55b48528559432bd21c7d7e985"
+DEFAULT_STEPS = 15
+JOB_TIMEOUT = 300  # 5 minutes — cancel and fail if Replicate hangs
 
 
 class ReplicateService:
@@ -91,19 +92,35 @@ class ReplicateService:
             if not garment_description:
                 garment_description = f"a {category.replace('_', ' ')}"
 
-            output = replicate.run(
-                MODEL,
+            client = replicate.Client(api_token=self.api_token)
+            prediction = client.predictions.create(
+                version=MODEL.split(":")[1],
                 input={
                     "human_img": person_data_url,
                     "garm_img": garment_data_url,
                     "garment_des": garment_description,
                     "category": replicate_category,
-                    "num_inference_steps": num_inference_steps,
-                    "guidance_scale": guidance_scale,
+                    "steps": num_inference_steps,
                 },
             )
+            logger.info(f"🔄 Prediction created: {prediction.id}")
 
-            result_image = self._extract_image(output)
+            # Poll with timeout instead of blocking replicate.run()
+            while prediction.status not in ("succeeded", "failed", "canceled"):
+                elapsed = time.time() - start_time
+                if elapsed > JOB_TIMEOUT:
+                    prediction.cancel()
+                    logger.error(f"❌ Replicate job {prediction.id} timed out after {JOB_TIMEOUT}s — cancelled")
+                    return None
+                time.sleep(2)
+                prediction.reload()
+                logger.info(f"⏳ Prediction {prediction.id} status: {prediction.status} ({elapsed:.0f}s)")
+
+            if prediction.status != "succeeded":
+                logger.error(f"❌ Prediction {prediction.id} {prediction.status}: {prediction.error}")
+                return None
+
+            result_image = self._extract_image(prediction.output)
             if not result_image:
                 return None
 
